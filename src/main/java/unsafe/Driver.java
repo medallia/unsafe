@@ -10,6 +10,12 @@ public class Driver {
 	 */
 	public static final Object JNI_ENV = new Object();
 
+	public static NativeModule compileInMemory(String sourceCode) {
+		return compileInMemory(sourceCode, null);
+	}
+	public static NativeModule compileInMemory(String sourceCode, String[] compilerArgs) {
+		return compileInMemory(null, sourceCode, compilerArgs);
+	}
 	/**
 	 * Compiles the specified source code using a virtual file named {@code fileName}.
 	 * It passes the {@code compilerArgs} Clang. Do not use "-g" as an argument since MCJIT
@@ -19,7 +25,7 @@ public class Driver {
 	 * @param compilerArgs additional arguments for Clang
 	 * @return a compiled NativeModule
 	 */
-	private static NativeModule compileInMemory(String fileName, String sourceCode, String[] compilerArgs) {
+	public static NativeModule compileInMemory(String fileName, String sourceCode, String[] compilerArgs) {
 		if (sourceCode == null) {
 			throw new IllegalArgumentException("missing source code");
 		}
@@ -41,17 +47,36 @@ public class Driver {
 	static native Object invoke(NativeFunction function, Object[] args);
 	static native String getFunctionName(NativeFunction function);
 	static native NativeFunction[] getFunctions(NativeModule nativeModule);
+	static native void delete(NativeModule nativeModule);
 
 	static {
 		System.loadLibrary("UnsafeDriver");
 	}
 
 	public static void main(String[] args) {
-		final NativeModule nativeModule = compileInMemory(null, "#include <stdio.h>\nextern \"C\" int foo() { printf(\"hello you\");return -1; };", null);
+		NativeModule nativeModule = compileInMemory("#include <stdio.h>\n" +
+				"#include <stdlib.h>\n" +
+				"extern \"C\" int foo(int x) { " +
+				"printf(\"hola mundo: %d\\n\", x); " +
+				"return -1; " +
+				"}");
 		System.out.println("nativeModule = " + nativeModule);
-		final NativeFunction[] functions = nativeModule.getFunctions();
+		NativeFunction[] functions = nativeModule.getFunctions();
 		System.out.println("funcs = " + Arrays.toString(functions));
 
-		functions[0].invoke();
+		for (int i = 3; i --> 0;) {
+			final long start = System.nanoTime();
+			functions[0].invoke(42);
+			final long end = System.nanoTime();
+			System.out.println((end - start) / 1e3 + "us");
+		}
+
+		// Release memory
+		functions = null;
+		nativeModule = null;
+		System.gc();
+
+
 	}
+
 }

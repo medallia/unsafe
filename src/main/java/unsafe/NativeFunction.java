@@ -11,7 +11,7 @@ public class NativeFunction {
 	}
 
 	public Object invoke(Object... args) {
-		return Driver.invoke(this, args);
+		return Driver.invoke(this, args == null ? new Object[0] : args);
 	}
 
 	@Override

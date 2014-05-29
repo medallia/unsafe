@@ -39,6 +39,14 @@ JNIEXPORT jstring JNICALL Java_unsafe_Driver_getFunctionName
 JNIEXPORT jobjectArray JNICALL Java_unsafe_Driver_getFunctions
   (JNIEnv *, jclass, jobject);
 
+/*
+ * Class:     unsafe_Driver
+ * Method:    delete
+ * Signature: (Lunsafe/NativeModule;)V
+ */
+JNIEXPORT void JNICALL Java_unsafe_Driver_delete
+  (JNIEnv *, jclass, jobject);
+
 #ifdef __cplusplus
 }
 #endif

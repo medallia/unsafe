@@ -9,6 +9,12 @@ const std::string toString(JNIEnv* env, jstring javaString) {
     return result;
 }
 
+// Throws an IllegalArgumentException
+jint throwIllegalArgumentException( JNIEnv *env, std::string message )
+{
+    const jclass exClass = env->FindClass("java/lang/IllegalArgumentException");
+    return env->ThrowNew(exClass, message.c_str());
+}
 
 #ifdef __cplusplus
 extern "C" {
@@ -62,9 +68,40 @@ JNIEXPORT jobject JNICALL Java_unsafe_Driver_invoke
     const jfieldID modulePtrField = env->GetFieldID(nativeModuleJavaClass, "modulePtr", "J");
     NativeModule* nativeModule = (NativeModule*) env->GetLongField(aNativeModule, modulePtrField);
 
+    
+    // transform args and return values
     const jsize nArgs = env->GetArrayLength(arguments);
-    // TODO : transform args and return values
-    std::vector<llvm::GenericValue> nativeArgs;
+    std::vector<llvm::GenericValue> nativeArgs(nArgs);
+    
+    const llvm::Function::ArgumentListType& argTypes = func->getArgumentList();
+    if (argTypes.size() != nArgs) {
+        throwIllegalArgumentException(env, std::string("Expected ") + std::to_string(argTypes.size()) + " arguments");
+        return nullptr;
+    }
+
+    for (const llvm::Argument& argDef : argTypes) {
+        llvm::GenericValue val;
+        jobject javaVal = env->GetObjectArrayElement(arguments, argDef.getArgNo());
+        jclass javaValClass = javaVal ? env->GetObjectClass(javaVal) : nullptr;
+        if (argDef.getType()->isIntegerTy()) {
+            jmethodID longValueMtdId = javaValClass ? env->GetMethodID(javaValClass, "longValue", "()J") : nullptr;
+            if (!longValueMtdId) {
+                throwIllegalArgumentException(env, std::string("Could not find longValue() method for arg ") + std::to_string(argDef.getArgNo()));
+                return nullptr;
+            }
+            jlong longVal = env->CallLongMethod(javaVal, longValueMtdId);
+            val.IntVal = llvm::APInt(argDef.getType()->getPrimitiveSizeInBits(), longVal);
+        } else {
+            std::string msg;
+            llvm::raw_string_ostream os(msg);
+            os << "Unsupported argument type '" << *argDef.getType() << "'";
+            throwIllegalArgumentException(env, os.str());
+            return nullptr;
+        }
+        
+        nativeArgs[argDef.getArgNo()] = val;
+    }
+    
     nativeModule->runFunction(func, nativeArgs);
 
     return nullptr;
@@ -113,6 +150,21 @@ JNIEXPORT jobjectArray JNICALL Java_unsafe_Driver_getFunctions
     }
 
     return result;
+}
+
+
+/*
+ * Class:     unsafe_Driver
+ * Method:    delete
+ * Signature: (Lunsafe/NativeModule;)V
+ */
+JNIEXPORT void JNICALL Java_unsafe_Driver_delete
+(JNIEnv * env, jclass clazz, jobject aNativeModule) {
+    // Delete the native module
+    const jclass nativeModuleJavaClass = env->GetObjectClass(aNativeModule);
+    const jfieldID modulePtrField = env->GetFieldID(nativeModuleJavaClass, "modulePtr", "J");
+    const NativeModule* nativeModule = (NativeModule*) env->GetLongField(aNativeModule, modulePtrField);
+    delete nativeModule;
 }
 
 #ifdef __cplusplus

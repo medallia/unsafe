@@ -14,4 +14,11 @@ public class NativeModule {
 	public String toString() {
 		return "NativeModule <0x" + Long.toHexString(modulePtr) + ">";
 	}
+
+	@Override
+	protected void finalize() throws Throwable {
+		super.finalize();
+		System.out.println("NativeModule.finalize");
+		Driver.delete(this);
+	}
 }
