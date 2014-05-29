@@ -1,6 +1,8 @@
 package unsafe;
 
 public class NativeFunction {
+	private NativeModule parent;
+
 	/** Pointer to the underlying llvm::Function. Used by native code. */
 	private long functionPtr;
 

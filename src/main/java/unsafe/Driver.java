@@ -47,8 +47,11 @@ public class Driver {
 	}
 
 	public static void main(String[] args) {
-		final NativeModule nativeModule = compileInMemory(null, "extern \"C\" int foo() { return -1; };", null);
+		final NativeModule nativeModule = compileInMemory(null, "#include <stdio.h>\nextern \"C\" int foo() { printf(\"hello you\");return -1; };", null);
 		System.out.println("nativeModule = " + nativeModule);
-		System.out.println("funcs = " + Arrays.toString(nativeModule.getFunctions()));
+		final NativeFunction[] functions = nativeModule.getFunctions();
+		System.out.println("funcs = " + Arrays.toString(functions));
+
+		functions[0].invoke();
 	}
 }

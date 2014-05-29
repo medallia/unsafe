@@ -193,3 +193,10 @@ std::vector<llvm::Function*> NativeModule::getFunctions() const {
     return functions;
 }
 
+llvm::GenericValue NativeModule::runFunction(llvm::Function *function, const std::vector<llvm::GenericValue> &argValues) {
+    llvm::GenericValue result;
+    if (executionEngine) {
+        result = executionEngine->runFunction(function, argValues);
+    }
+    return result;
+}
