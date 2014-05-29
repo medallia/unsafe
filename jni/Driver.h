@@ -25,14 +25,6 @@ JNIEXPORT jobject JNICALL Java_unsafe_Driver_invoke
 
 /*
  * Class:     unsafe_Driver
- * Method:    getFunctionName
- * Signature: (Lunsafe/NativeFunction;)Ljava/lang/String;
- */
-JNIEXPORT jstring JNICALL Java_unsafe_Driver_getFunctionName
-  (JNIEnv *, jclass, jobject);
-
-/*
- * Class:     unsafe_Driver
  * Method:    getFunctions
  * Signature: (Lunsafe/NativeModule;)[Lunsafe/NativeFunction;
  */

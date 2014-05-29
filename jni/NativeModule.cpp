@@ -42,22 +42,105 @@
 
 using namespace clang;
 
+/** 
+ This is essentially the same than PassManagerBuilder::populateLTOPassManager()
+ with the exception that it disables the GlobalDCE and internalization passes, which remove functions
+ very aggressively, the problem is that it will over-remove functions.
+ The work around would be to reference the function from main() so it is reachable.
+ */
+void populateLTOPassManager(llvm::PassManagerBase &PM) {
+    // Add TypeBasedAliasAnalysis before BasicAliasAnalysis so that
+    // BasicAliasAnalysis wins if they disagree. This is intended to help
+    // support "obvious" type-punning idioms.
+    PM.add(llvm::createTypeBasedAliasAnalysisPass());
+    PM.add(llvm::createBasicAliasAnalysisPass());
+    
+    // Propagate constants at call sites into the functions they call.  This
+    // opens opportunities for globalopt (and inlining) by substituting function
+    // pointers passed as arguments to direct uses of functions.
+    PM.add(llvm::createIPSCCPPass());
+    
+    // Now that we internalized some globals, see if we can hack on them!
+    PM.add(llvm::createGlobalOptimizerPass());
+    
+    // Linking modules together can lead to duplicated global constants, only
+    // keep one copy of each constant.
+    PM.add(llvm::createConstantMergePass());
+    
+    // Remove unused arguments from functions.
+    PM.add(llvm::createDeadArgEliminationPass());
+    
+    // Reduce the code after globalopt and ipsccp.  Both can open up significant
+    // simplification opportunities, and both can propagate functions through
+    // function pointers.  When this happens, we often have to resolve varargs
+    // calls, etc, so let instcombine do this.
+    PM.add(llvm::createInstructionCombiningPass());
+    
+    // Inline small functions
+    PM.add(llvm::createFunctionInliningPass());
+    
+    PM.add(llvm::createPruneEHPass());   // Remove dead EH info.
+    
+    // Optimize globals again if we ran the inliner.
+    PM.add(llvm::createGlobalOptimizerPass());
+    
+    // If we didn't decide to inline a function, check to see if we can
+    // transform it to pass arguments by value instead of by reference.
+    PM.add(llvm::createArgumentPromotionPass());
+    
+    // The IPO passes may leave cruft around.  Clean up after them.
+    PM.add(llvm::createInstructionCombiningPass());
+    PM.add(llvm::createJumpThreadingPass());
+    
+    // Break up allocas
+    PM.add(llvm::createScalarReplAggregatesPass());
+    
+    // Run a few AA driven optimizations here and now, to cleanup the code.
+    PM.add(llvm::createFunctionAttrsPass()); // Add nocapture.
+    PM.add(llvm::createGlobalsModRefPass()); // IP alias analysis.
+    
+    PM.add(llvm::createLICMPass());                 // Hoist loop invariants.
+    PM.add(llvm::createGVNPass(false));             // Remove redundancies.
+    PM.add(llvm::createMemCpyOptPass());            // Remove dead memcpys.
+    
+    // Nuke dead stores.
+    PM.add(llvm::createDeadStoreEliminationPass());
+    
+    // More loops are countable; try to optimize them.
+    PM.add(llvm::createIndVarSimplifyPass());
+    PM.add(llvm::createLoopDeletionPass());
+    PM.add(llvm::createLoopVectorizePass(true, true));
+    
+    // More scalar chains could be vectorized due to more alias information
+    PM.add(llvm::createSLPVectorizerPass()); // Vectorize parallel scalar chains.
+    
+    // Cleanup and simplify the code after the scalar optimizations.
+    PM.add(llvm::createInstructionCombiningPass());
+    
+    PM.add(llvm::createJumpThreadingPass());
+    
+    // Delete basic blocks, which optimization passes may have killed.
+    PM.add(llvm::createCFGSimplificationPass());
+}
+
+
 NativeModule::NativeModule(std::string _fileName, std::string _sourceCode, std::vector<std::string> _compilerArgs) :
 fileName(_fileName),
 sourceCode(_sourceCode),
 compilerArgs(_compilerArgs){
     const std::chrono::time_point<std::chrono::steady_clock> t0 = std::chrono::high_resolution_clock::now();
-    
+
     llvm::InitializeNativeTarget();
     
 	// Arguments to pass to the clang frontend
     std::vector<const char *> args;
     for (std::string arg : compilerArgs) {
-        args.push_back(arg.c_str());
+        args.push_back(strdup(arg.c_str()));
     }
     
     // We'll fake the contents of this file later
-	args.push_back(fileName.c_str());
+	args.push_back(strdup(fileName.c_str()));
+    
     
 	// The compiler invocation needs a DiagnosticsEngine so it can report problems
     llvm::IntrusiveRefCntPtr<clang::DiagnosticOptions> DiagOpts(new clang::DiagnosticOptions());
@@ -103,7 +186,12 @@ compilerArgs(_compilerArgs){
 	llvm::OwningPtr<clang::CodeGenAction> codeGenAction(new clang::EmitLLVMOnlyAction(&context));
 	if (!Clang.ExecuteAction(*codeGenAction))
 		return;
-    
+
+    // Release all the argument copies we made earlier
+    for (const char * s : args) {
+        delete s;
+    }
+
 	// Grab the module built by the EmitLLVMOnlyAction (will be owned by the execution engine)
 	module = codeGenAction->takeModule();
     
@@ -136,7 +224,7 @@ compilerArgs(_compilerArgs){
     // target lays out data structures.
     FPM.add(new llvm::DataLayoutPass(module));
     
-    // Setup C/C++ stadard optimizations
+    // Setup C/C++ standard optimizations
     llvm::PassManagerBuilder Builder;
     
     Builder.OptLevel = 3;
@@ -150,20 +238,20 @@ compilerArgs(_compilerArgs){
     
     Builder.populateFunctionPassManager(FPM);
     Builder.populateModulePassManager(Passes);
-    
+    populateLTOPassManager(Passes);
+
     // Add target specific passes
     executionEngine->getTargetMachine()->addAnalysisPasses(FPM);
     executionEngine->getTargetMachine()->addAnalysisPasses(Passes);
-    
+
     const std::chrono::time_point<std::chrono::steady_clock> t2 = std::chrono::high_resolution_clock::now();
     fprintf(stderr, "- build passes %fs\n", (t2 - t1).count()/1e9);
     
     FPM.doInitialization();
     // For each function in the module
     for (llvm::Module::iterator it = module->begin(), E = module->end(); it != E; ++it) {
-        fprintf(stderr, "    . optimzing: %s\n", (*it).getName().str().c_str());
+        fprintf(stderr, "    . optimizing: %s\n", (*it).getName().str().c_str());
         FPM.run(*it);
-        functions.push_back(it);
     }
     
     
@@ -180,6 +268,11 @@ compilerArgs(_compilerArgs){
     
     executionEngine->generateCodeForModule(module);
     executionEngine->finalizeObject();
+    
+    // Save all functions that survived optimization
+    for (llvm::Module::iterator it = module->begin(), E = module->end(); it != E; ++it) {
+        functions.push_back(it);
+    }
     
     const std::chrono::time_point<std::chrono::steady_clock> t5 = std::chrono::high_resolution_clock::now();
     fprintf(stderr, "- full build %fs\n", (t5 - t0).count()/1e9);

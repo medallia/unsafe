@@ -4,7 +4,8 @@
 // Convert a java string to std::string
 const std::string toString(JNIEnv* env, jstring javaString) {
     const char * utfChars = env->GetStringUTFChars(javaString, nullptr);
-    const std::string result(utfChars);
+    std::string result;
+    result.append(utfChars);
     env->ReleaseStringUTFChars(javaString, utfChars);
     return result;
 }
@@ -109,19 +110,6 @@ JNIEXPORT jobject JNICALL Java_unsafe_Driver_invoke
 
 /*
  * Class:     unsafe_Driver
- * Method:    getFunctionName
- * Signature: (Lunsafe/NativeFunction;)Ljava/lang/String;
- */
-JNIEXPORT jstring JNICALL Java_unsafe_Driver_getFunctionName
-(JNIEnv * env, jclass clazz, jobject aNativeFunction) {
-    const jclass nativeFunctionJavaClass = env->GetObjectClass(aNativeFunction);
-    const jfieldID functionPtrField = env->GetFieldID(nativeFunctionJavaClass, "functionPtr", "J");
-    const llvm::Function* func = (llvm::Function*) env->GetLongField(aNativeFunction, functionPtrField);
-    return env->NewStringUTF(func->getName().str().c_str());
-}
-
-/*
- * Class:     unsafe_Driver
  * Method:    getFunctions
  * Signature: (Lunsafe/NativeModule;)[Lunsafe/NativeFunction;
  */
@@ -139,6 +127,7 @@ JNIEXPORT jobjectArray JNICALL Java_unsafe_Driver_getFunctions
     const jclass nativeFunctionJavaClass = env->FindClass("unsafe/NativeFunction");
     const jmethodID constructor = env->GetMethodID(nativeFunctionJavaClass, "<init>", "()V");
     const jfieldID functionPtrField = env->GetFieldID(nativeFunctionJavaClass, "functionPtr", "J");
+    const jfieldID nameField = env->GetFieldID(nativeFunctionJavaClass, "name", "Ljava/lang/String;");
     const jfieldID parentField = env->GetFieldID(nativeFunctionJavaClass, "parent", "Lunsafe/NativeModule;");
 
     jobjectArray result = env->NewObjectArray(nativeFunctions.size(), nativeFunctionJavaClass, nullptr);
@@ -146,6 +135,7 @@ JNIEXPORT jobjectArray JNICALL Java_unsafe_Driver_getFunctions
         const jobject javaNativeFunction = env->NewObject(nativeFunctionJavaClass, constructor);
         env->SetLongField(javaNativeFunction, functionPtrField, (jlong)nativeFunctions[i]);
         env->SetObjectField(javaNativeFunction, parentField, aNativeModule);
+        env->SetObjectField(javaNativeFunction, nameField, env->NewStringUTF(nativeFunctions[i]->getName().str().c_str()));
         env->SetObjectArrayElement(result, i, javaNativeFunction);
     }
 
