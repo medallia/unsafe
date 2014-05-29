@@ -11,4 +11,9 @@ public class NativeFunction {
 	public Object invoke(Object... args) {
 		return Driver.invoke(this, args);
 	}
+
+	@Override
+	public String toString() {
+		return "NativeFunction '" + getName() + "' <0x" + Long.toHexString(functionPtr) + ">";
+	}
 }

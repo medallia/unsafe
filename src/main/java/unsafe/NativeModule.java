@@ -9,4 +9,9 @@ public class NativeModule {
 	public NativeFunction[] getFunctions() {
 		return Driver.getFunctions(this);
 	}
+
+	@Override
+	public String toString() {
+		return "NativeModule <0x" + Long.toHexString(modulePtr) + ">";
+	}
 }

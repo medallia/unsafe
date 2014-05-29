@@ -1,5 +1,7 @@
 package unsafe;
 
+import java.util.Arrays;
+
 public class Driver {
 	/**
 	 * When passed as an argument to a {@link unsafe.NativeFunction#invoke(Object...)}
@@ -44,4 +46,9 @@ public class Driver {
 		System.loadLibrary("UnsafeDriver");
 	}
 
+	public static void main(String[] args) {
+		final NativeModule nativeModule = compileInMemory(null, "extern \"C\" int foo() { return -1; };", null);
+		System.out.println("nativeModule = " + nativeModule);
+		System.out.println("funcs = " + Arrays.toString(nativeModule.getFunctions()));
+	}
 }

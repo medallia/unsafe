@@ -1,5 +1,5 @@
 CC=g++
-SOURCES=Driver.cpp
+SOURCES=Driver.cpp NativeModule.cpp
 CLANG_ROOT=/Users/juancn/projects/clang-all
 CLANG_BUILD=$(CLANG_ROOT)/build
 CFLAGS=-c -std=c++11 -stdlib=libc++ -D__STDC_CONSTANT_MACROS -D__STDC_LIMIT_MACROS -D_GNU_SOURCE -D__STDC_FORMAT_MACROS -O3
