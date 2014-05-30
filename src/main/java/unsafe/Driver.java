@@ -3,13 +3,6 @@ package unsafe;
 import java.util.Arrays;
 
 public class Driver {
-	/**
-	 * When passed as an argument to a {@link unsafe.NativeFunction#invoke(Object...)}
-	 * it will be replaced by the current JNI environment pointer.
-	 * This allows compiled code to call Java objects via JNI.
-	 */
-	public static final Object JNI_ENV = new Object();
-
 	public static NativeModule compileInMemory(String sourceCode) {
 		return compileInMemory(sourceCode, null);
 	}
@@ -45,7 +38,6 @@ public class Driver {
 	}
 	private static native NativeModule compileInMemory0(String fileName, String sourceCode, String[] compilerArgs);
 	static native Object invoke(NativeFunction function, Object[] args);
-	static native String getFunctionName(NativeFunction function);
 	static native NativeFunction[] getFunctions(NativeModule nativeModule);
 	static native void delete(NativeModule nativeModule);
 
@@ -215,6 +207,12 @@ public class Driver {
 				"\n" +
 				"\treturn EXIT_SUCCESS;\n" +
 				"}\n";
+
+		code = "#include <jni.h>\n" +
+				"extern \"C\" void foo(JNIEnv * env, jobject x, jstring y) {" +
+				"jmethodID toStringId = env->GetMethodID(env->GetObjectClass(x),\"toString\", \"()Ljava/lang/String;\");" +
+				"env->CallObjectMethod(x, toStringId);" +
+				"}";
 		NativeModule nativeModule = compileInMemory(code,
 				new String[] {
 						"-Wall",
@@ -222,7 +220,8 @@ public class Driver {
 		 				"-I/Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/../lib/c++/v1",
 						"-I/Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/../lib/clang/5.1/include",
 		 				"-I/Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/include",
-		 				//"-I/Users/juancn/projects/clang-all/build/Release+Asserts/lib/clang/3.5.0/include"
+		 				"-I/Library/Java/JavaVirtualMachines/jdk1.7.0_21.jdk/Contents/Home/include",
+		 				"-I/Library/Java/JavaVirtualMachines/jdk1.7.0_21.jdk/Contents/Home/include/darwin"
 
 					}
 				);
@@ -240,13 +239,20 @@ public class Driver {
 		if (function != null) {
 			for (int i = 3; i --> 0;) {
 				final long start = System.nanoTime();
-				function.invoke();
+				function.invoke(null, new Object() {
+					@Override
+					public String toString() {
+						System.out.println("Called .toString() from native code");
+						return super.toString();
+					}
+				}, null);
 				final long end = System.nanoTime();
 				System.out.println((end - start) / 1e3 + "us");
 			}
 		}
 
 		// Release memory
+		function = null;
 		functions = null;
 		nativeModule = null;
 		System.gc();

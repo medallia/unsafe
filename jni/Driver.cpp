@@ -10,11 +10,24 @@ const std::string toString(JNIEnv* env, jstring javaString) {
     return result;
 }
 
+// Returns a class's name
+const std::string getClassName(JNIEnv* env, jclass aClass) {
+    jclass classClass = env->GetObjectClass(aClass);
+    jmethodID getNameMtdId = env->GetMethodID(classClass, "getName", "()Ljava/lang/String;");
+    return toString(env,(jstring) env->CallObjectMethod(aClass, getNameMtdId));
+}
+
 // Throws an IllegalArgumentException
-jint throwIllegalArgumentException( JNIEnv *env, std::string message )
-{
+jint throwIllegalArgumentException(JNIEnv* env, std::string message ) {
     const jclass exClass = env->FindClass("java/lang/IllegalArgumentException");
     return env->ThrowNew(exClass, message.c_str());
+}
+
+jint throwIllegalArgumentException(JNIEnv* env, const llvm::Argument& argDef) {
+    std::string msg;
+    llvm::raw_string_ostream os(msg);
+    os << "Unsupported argument type '" << *argDef.getType() << "' for argument #" << argDef.getArgNo();
+    return throwIllegalArgumentException(env, os.str());
 }
 
 #ifdef __cplusplus
@@ -82,6 +95,7 @@ JNIEXPORT jobject JNICALL Java_unsafe_Driver_invoke
 
     for (const llvm::Argument& argDef : argTypes) {
         llvm::GenericValue val;
+        bool set = false;
         jobject javaVal = env->GetObjectArrayElement(arguments, argDef.getArgNo());
         jclass javaValClass = javaVal ? env->GetObjectClass(javaVal) : nullptr;
         if (argDef.getType()->isIntegerTy()) {
@@ -92,11 +106,56 @@ JNIEXPORT jobject JNICALL Java_unsafe_Driver_invoke
             }
             jlong longVal = env->CallLongMethod(javaVal, longValueMtdId);
             val.IntVal = llvm::APInt(argDef.getType()->getPrimitiveSizeInBits(), longVal);
-        } else {
-            std::string msg;
-            llvm::raw_string_ostream os(msg);
-            os << "Unsupported argument type '" << *argDef.getType() << "'";
-            throwIllegalArgumentException(env, os.str());
+            set = true;
+        } else if (argDef.getType()->isPointerTy()) {
+            const llvm::Type* elementType = argDef.getType()->getPointerElementType();
+            if (elementType->isStructTy()) {
+                const llvm::StructType* structType = static_cast<const llvm::StructType*>(elementType);
+                if (!structType->isLiteral()) {
+                    if (structType->getName() == "class._jobject") {
+                        // Just pass the JNI Java object
+                        val.PointerVal = javaVal;
+                        set = true;
+                    } else if (structType->getName() == "struct.JNIEnv_") {
+                        // Just pass the environment pointer, we don't care about the actual argument
+                        val.PointerVal = env;
+                        set = true;
+                    } else if (structType->getName() == "class._jstring") {
+                        // Check that the arg is a valid jstring
+                        if (javaVal) {
+                            std::string name = getClassName(env, javaValClass);
+                            if(name != std::string("java.lang.String")) {
+                                throwIllegalArgumentException(env,
+                                                              std::string("expected a string for arg #") + std::to_string(argDef.getArgNo())
+                                                              + std::string(" but got a ") + name);
+                                return nullptr;
+                            }
+                        }
+                        // Just pass the JNI Java object
+                        val.PointerVal = javaVal;
+                        set = true;
+                    } else if (structType->getName() == "class._jobjectArray") {
+                        // Check that the arg is in fact an object array of any type
+                        if (javaVal) {
+                            jclass classClass = env->GetObjectClass(javaValClass);
+                            jmethodID isArrayMtdId = env->GetMethodID(classClass, "isArray", "()Z");
+                            if(!env->CallBooleanMethod(javaValClass, isArrayMtdId)) {
+                                throwIllegalArgumentException(env,
+                                                              std::string("expected a string for arg #") + std::to_string(argDef.getArgNo())
+                                                              + std::string(" but got a ") + getClassName(env, javaValClass));
+                                return nullptr;
+                            }
+                        }
+                        // Just pass the JNI Java object
+                        val.PointerVal = javaVal;
+                        set = true;
+                    }
+                }
+            }
+        }
+        
+        if (!set) {
+            throwIllegalArgumentException(env, argDef);
             return nullptr;
         }
         
@@ -130,7 +189,7 @@ JNIEXPORT jobjectArray JNICALL Java_unsafe_Driver_getFunctions
     const jfieldID nameField = env->GetFieldID(nativeFunctionJavaClass, "name", "Ljava/lang/String;");
     const jfieldID parentField = env->GetFieldID(nativeFunctionJavaClass, "parent", "Lunsafe/NativeModule;");
 
-    jobjectArray result = env->NewObjectArray(nativeFunctions.size(), nativeFunctionJavaClass, nullptr);
+    jobjectArray result = env->NewObjectArray((jsize)nativeFunctions.size(), nativeFunctionJavaClass, nullptr);
     for (jsize i = 0; i < nativeFunctions.size(); ++i) {
         const jobject javaNativeFunction = env->NewObject(nativeFunctionJavaClass, constructor);
         env->SetLongField(javaNativeFunction, functionPtrField, (jlong)nativeFunctions[i]);
