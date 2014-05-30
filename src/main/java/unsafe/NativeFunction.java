@@ -21,6 +21,7 @@ public class NativeFunction {
 	private final String name;
 
 	/** Called by native code. */
+	@SuppressWarnings("UnusedDeclaration")
 	private NativeFunction(long functionPtr, String name, NativeModule parent) {
 		this.functionPtr = functionPtr;
 		this.name = name;

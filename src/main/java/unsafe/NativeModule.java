@@ -21,6 +21,11 @@ public class NativeModule {
 	/** Any compilation errors */
 	private final String errors;
 
+	/**
+	 * Creates a new {@link unsafe.NativeModule}.
+	 * Used by native code, do not change.
+	 */
+	@SuppressWarnings("UnusedDeclaration")
 	private NativeModule(long modulePtr, String errors) {
 		this.modulePtr = modulePtr;
 		this.errors = errors;
