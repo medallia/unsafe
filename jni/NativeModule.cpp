@@ -189,7 +189,7 @@ compilerArgs(_compilerArgs){
 
     // Release all the argument copies we made earlier
     for (const char * s : args) {
-        delete s;
+        std::free((void*)s);
     }
 
 	// Grab the module built by the EmitLLVMOnlyAction (will be owned by the execution engine)

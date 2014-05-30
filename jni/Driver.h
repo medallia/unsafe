@@ -39,6 +39,14 @@ JNIEXPORT jobjectArray JNICALL Java_unsafe_Driver_getFunctions
 JNIEXPORT void JNICALL Java_unsafe_Driver_delete
   (JNIEnv *, jclass, jobject);
 
+/*
+ * Class:     unsafe_Driver
+ * Method:    initializeNativeCode
+ * Signature: ()V
+ */
+JNIEXPORT void JNICALL Java_unsafe_Driver_initializeNativeCode
+  (JNIEnv *, jclass);
+
 #ifdef __cplusplus
 }
 #endif

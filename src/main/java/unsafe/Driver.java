@@ -40,9 +40,11 @@ public class Driver {
 	static native Object invoke(NativeFunction function, Object[] args);
 	static native NativeFunction[] getFunctions(NativeModule nativeModule);
 	static native void delete(NativeModule nativeModule);
+	private static native void initializeNativeCode();
 
 	static {
 		System.loadLibrary("UnsafeDriver");
+		initializeNativeCode();
 	}
 
 	public static void main(String[] args) {
@@ -209,7 +211,7 @@ public class Driver {
 				"}\n";
 
 		code = "#include <jni.h>\n" +
-				"extern \"C\" void foo(JNIEnv * env, jobject x, jstring y) {" +
+				"extern \"C\" void foo(JNIEnv * env, jobject x, jobjectArray y) {" +
 				"jmethodID toStringId = env->GetMethodID(env->GetObjectClass(x),\"toString\", \"()Ljava/lang/String;\");" +
 				"env->CallObjectMethod(x, toStringId);" +
 				"}";
@@ -226,15 +228,9 @@ public class Driver {
 					}
 				);
 		System.out.println("nativeModule = " + nativeModule);
-		NativeFunction[] functions = nativeModule.getFunctions();
-		System.out.println("funcs = " + Arrays.toString(functions));
+		System.out.println("funcs = " + Arrays.toString(nativeModule.getFunctions()));
 
-		NativeFunction function = null;
-		for (NativeFunction nativeFunction : functions) {
-			if (nativeFunction.getName().equals("foo")) {
-				function = nativeFunction;
-			}
-		}
+		NativeFunction function = nativeModule.getFunctionByName("foo");
 
 		if (function != null) {
 			for (int i = 3; i --> 0;) {
@@ -245,7 +241,7 @@ public class Driver {
 						System.out.println("Called .toString() from native code");
 						return super.toString();
 					}
-				}, null);
+				}, new String[] {""});
 				final long end = System.nanoTime();
 				System.out.println((end - start) / 1e3 + "us");
 			}
@@ -253,7 +249,6 @@ public class Driver {
 
 		// Release memory
 		function = null;
-		functions = null;
 		nativeModule = null;
 		System.gc();
 	}

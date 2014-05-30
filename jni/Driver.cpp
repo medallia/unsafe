@@ -1,20 +1,39 @@
 #include "Driver.h"
 #include "NativeModule.h"
 
+// Commonly used jmethodIDs and jfieldIDs
+static struct {
+    // unsafe.NativeFunction
+    struct {
+        jmethodID constructor;
+        jfieldID functionPtrFldId;
+        jfieldID parentFldId;
+    } nativeFunction;
+
+    // unsafe.NativeModule
+    struct {
+        jmethodID constructor;
+        jfieldID modulePtrFldId;
+    } nativeModule;
+
+    // java.lang.Class
+    struct {
+        jmethodID getNameMtdId;
+        jmethodID isArrayMtdId;
+    } javaClass;
+} IDS;
+
 // Convert a java string to std::string
 const std::string toString(JNIEnv* env, jstring javaString) {
     const char * utfChars = env->GetStringUTFChars(javaString, nullptr);
-    std::string result;
-    result.append(utfChars);
+    std::string result(utfChars);
     env->ReleaseStringUTFChars(javaString, utfChars);
     return result;
 }
 
 // Returns a class's name
 const std::string getClassName(JNIEnv* env, jclass aClass) {
-    jclass classClass = env->GetObjectClass(aClass);
-    jmethodID getNameMtdId = env->GetMethodID(classClass, "getName", "()Ljava/lang/String;");
-    return toString(env,(jstring) env->CallObjectMethod(aClass, getNameMtdId));
+    return toString(env,(jstring) env->CallObjectMethod(aClass, IDS.javaClass.getNameMtdId));
 }
 
 // Throws an IllegalArgumentException
@@ -36,6 +55,29 @@ extern "C" {
 
 /*
  * Class:     unsafe_Driver
+ * Method:    initializeNativeCode
+ * Signature: ()V
+ */
+JNIEXPORT void JNICALL Java_unsafe_Driver_initializeNativeCode
+(JNIEnv * env, jclass driverClass) {
+    // Lookup commonly used method and field ids.
+    // Note that it is not safe to cache classes
+    const jclass nativeFunction_jClass = env->FindClass("unsafe/NativeFunction");
+    IDS.nativeFunction.constructor = env->GetMethodID(nativeFunction_jClass, "<init>", "(JLjava/lang/String;Lunsafe/NativeModule;)V");
+    IDS.nativeFunction.functionPtrFldId = env->GetFieldID(nativeFunction_jClass, "functionPtr", "J");
+    IDS.nativeFunction.parentFldId = env->GetFieldID(nativeFunction_jClass, "parent", "Lunsafe/NativeModule;");
+    
+    const jclass nativeModule_jClass = env->FindClass("unsafe/NativeModule");
+    IDS.nativeModule.constructor = env->GetMethodID(nativeModule_jClass, "<init>", "(J)V");
+    IDS.nativeModule.modulePtrFldId = env->GetFieldID(nativeModule_jClass, "modulePtr", "J");
+
+    const jclass javaClass_jClass = env->FindClass("java/lang/Class");
+    IDS.javaClass.getNameMtdId = env->GetMethodID(javaClass_jClass, "getName", "()Ljava/lang/String;");
+    IDS.javaClass.isArrayMtdId = env->GetMethodID(javaClass_jClass, "isArray", "()Z");
+}
+    
+/*
+ * Class:     unsafe_Driver
  * Method:    compileInMemory0
  * Signature: (Ljava/lang/String;Ljava/lang/String;[Ljava/lang/String;)Lunsafe/NativeModule;
  */
@@ -52,12 +94,9 @@ JNIEXPORT jobject JNICALL Java_unsafe_Driver_compileInMemory0
         toString(env, sourceCode),
         args
     );
-    const jclass nativeModuleJavaClass = env->FindClass("unsafe/NativeModule");
-    const jmethodID constructor = env->GetMethodID(nativeModuleJavaClass, "<init>", "()V");
-    const jobject javaNativeModule = env->NewObject(nativeModuleJavaClass, constructor);
-    const jfieldID modulePtrField = env->GetFieldID(nativeModuleJavaClass, "modulePtr", "J");
-    env->SetLongField(javaNativeModule, modulePtrField, (jlong)nativeModule);
-    return javaNativeModule;
+    
+    // Create and initinalize a new unsafe.NativeModule
+    return env->NewObject(env->FindClass("unsafe/NativeModule"), IDS.nativeModule.constructor, (jlong) nativeModule);
 }
 
 /*
@@ -68,19 +107,14 @@ JNIEXPORT jobject JNICALL Java_unsafe_Driver_compileInMemory0
 JNIEXPORT jobject JNICALL Java_unsafe_Driver_invoke
 (JNIEnv * env, jclass clazz, jobject aNativeFunction, jobjectArray arguments) {
     // Find the llvm::Function*
-    const jclass nativeFunctionJavaClass = env->GetObjectClass(aNativeFunction);
-    const jfieldID functionPtrField = env->GetFieldID(nativeFunctionJavaClass, "functionPtr", "J");
-    llvm::Function* func = (llvm::Function*) env->GetLongField(aNativeFunction, functionPtrField);
+    llvm::Function* func = (llvm::Function*) env->GetLongField(aNativeFunction, IDS.nativeFunction.functionPtrFldId);
 
     // and the module object
-    const jfieldID parentField = env->GetFieldID(nativeFunctionJavaClass, "parent", "Lunsafe/NativeModule;");
-    const jobject aNativeModule = env->GetObjectField(aNativeFunction, parentField);
+    const jobject aNativeModule = env->GetObjectField(aNativeFunction, IDS.nativeFunction.parentFldId);
 
     if (!aNativeModule) return nullptr;
     // extract the NativeModule instance
-    const jclass nativeModuleJavaClass = env->GetObjectClass(aNativeModule);
-    const jfieldID modulePtrField = env->GetFieldID(nativeModuleJavaClass, "modulePtr", "J");
-    NativeModule* nativeModule = (NativeModule*) env->GetLongField(aNativeModule, modulePtrField);
+    NativeModule* nativeModule = (NativeModule*) env->GetLongField(aNativeModule, IDS.nativeModule.modulePtrFldId);
 
     
     // transform args and return values
@@ -137,11 +171,9 @@ JNIEXPORT jobject JNICALL Java_unsafe_Driver_invoke
                     } else if (structType->getName() == "class._jobjectArray") {
                         // Check that the arg is in fact an object array of any type
                         if (javaVal) {
-                            jclass classClass = env->GetObjectClass(javaValClass);
-                            jmethodID isArrayMtdId = env->GetMethodID(classClass, "isArray", "()Z");
-                            if(!env->CallBooleanMethod(javaValClass, isArrayMtdId)) {
+                            if(!env->CallBooleanMethod(javaValClass, IDS.javaClass.isArrayMtdId)) {
                                 throwIllegalArgumentException(env,
-                                                              std::string("expected a string for arg #") + std::to_string(argDef.getArgNo())
+                                                              std::string("expected an object array for arg #") + std::to_string(argDef.getArgNo())
                                                               + std::string(" but got a ") + getClassName(env, javaValClass));
                                 return nullptr;
                             }
@@ -175,26 +207,20 @@ JNIEXPORT jobject JNICALL Java_unsafe_Driver_invoke
 JNIEXPORT jobjectArray JNICALL Java_unsafe_Driver_getFunctions
 (JNIEnv * env, jclass clazz, jobject aNativeModule) {
     // Get a reference to a NativeModule
-    const jclass nativeModuleJavaClass = env->GetObjectClass(aNativeModule);
-    const jfieldID modulePtrField = env->GetFieldID(nativeModuleJavaClass, "modulePtr", "J");
-    const NativeModule* nativeModule = (NativeModule*) env->GetLongField(aNativeModule, modulePtrField);
+    const NativeModule* nativeModule = (NativeModule*) env->GetLongField(aNativeModule, IDS.nativeModule.modulePtrFldId);
 
     // Get all native functions
     const std::vector<llvm::Function*> nativeFunctions = nativeModule->getFunctions();
 
     // Wrap them in Java objects
     const jclass nativeFunctionJavaClass = env->FindClass("unsafe/NativeFunction");
-    const jmethodID constructor = env->GetMethodID(nativeFunctionJavaClass, "<init>", "()V");
-    const jfieldID functionPtrField = env->GetFieldID(nativeFunctionJavaClass, "functionPtr", "J");
-    const jfieldID nameField = env->GetFieldID(nativeFunctionJavaClass, "name", "Ljava/lang/String;");
-    const jfieldID parentField = env->GetFieldID(nativeFunctionJavaClass, "parent", "Lunsafe/NativeModule;");
 
     jobjectArray result = env->NewObjectArray((jsize)nativeFunctions.size(), nativeFunctionJavaClass, nullptr);
     for (jsize i = 0; i < nativeFunctions.size(); ++i) {
-        const jobject javaNativeFunction = env->NewObject(nativeFunctionJavaClass, constructor);
-        env->SetLongField(javaNativeFunction, functionPtrField, (jlong)nativeFunctions[i]);
-        env->SetObjectField(javaNativeFunction, parentField, aNativeModule);
-        env->SetObjectField(javaNativeFunction, nameField, env->NewStringUTF(nativeFunctions[i]->getName().str().c_str()));
+        const jobject javaNativeFunction = env->NewObject(nativeFunctionJavaClass, IDS.nativeFunction.constructor,
+                                                          (jlong)nativeFunctions[i],
+                                                          env->NewStringUTF(nativeFunctions[i]->getName().str().c_str()),
+                                                          aNativeModule);
         env->SetObjectArrayElement(result, i, javaNativeFunction);
     }
 
@@ -210,9 +236,7 @@ JNIEXPORT jobjectArray JNICALL Java_unsafe_Driver_getFunctions
 JNIEXPORT void JNICALL Java_unsafe_Driver_delete
 (JNIEnv * env, jclass clazz, jobject aNativeModule) {
     // Delete the native module
-    const jclass nativeModuleJavaClass = env->GetObjectClass(aNativeModule);
-    const jfieldID modulePtrField = env->GetFieldID(nativeModuleJavaClass, "modulePtr", "J");
-    const NativeModule* nativeModule = (NativeModule*) env->GetLongField(aNativeModule, modulePtrField);
+    const NativeModule* nativeModule = (NativeModule*) env->GetLongField(aNativeModule, IDS.nativeModule.modulePtrFldId);
     delete nativeModule;
 }
 
