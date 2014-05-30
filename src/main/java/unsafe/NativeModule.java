@@ -18,8 +18,12 @@ public class NativeModule {
 	/** Index for {@link unsafe.NativeFunction} by decorated name. */
 	private final Map<String, NativeFunction> nameIndex;
 
-	private NativeModule(long modulePtr) {
+	/** Any compilation errors */
+	private final String errors;
+
+	private NativeModule(long modulePtr, String errors) {
 		this.modulePtr = modulePtr;
+		this.errors = errors;
 		this.functions = Driver.getFunctions(this);
 		this.nameIndex = new HashMap<>();
 		for (NativeFunction function : functions) {
@@ -41,6 +45,16 @@ public class NativeModule {
 	 */
 	public NativeFunction getFunctionByName(String name) {
 		return nameIndex.get(name);
+	}
+
+	/** @return true if there are any errors */
+	public boolean hasErrors() {
+		return !errors.isEmpty();
+	}
+
+	/** @return any compilation errors */
+	public String getErrors() {
+		return errors;
 	}
 
 	@Override

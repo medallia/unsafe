@@ -73,7 +73,7 @@ JNIEXPORT void JNICALL Java_unsafe_Driver_initializeNativeCode
     IDS.nativeFunction.parentFldId = env->GetFieldID(nativeFunction_jClass, "parent", "Lunsafe/NativeModule;");
     
     const jclass nativeModule_jClass = env->FindClass("unsafe/NativeModule");
-    IDS.nativeModule.constructor = env->GetMethodID(nativeModule_jClass, "<init>", "(J)V");
+    IDS.nativeModule.constructor = env->GetMethodID(nativeModule_jClass, "<init>", "(JLjava/lang/String;)V");
     IDS.nativeModule.modulePtrFldId = env->GetFieldID(nativeModule_jClass, "modulePtr", "J");
 
     const jclass javaClass_jClass = env->FindClass("java/lang/Class");
@@ -104,7 +104,9 @@ JNIEXPORT jobject JNICALL Java_unsafe_Driver_compileInMemory0
     );
     
     // Create and initinalize a new unsafe.NativeModule
-    return env->NewObject(env->FindClass("unsafe/NativeModule"), IDS.nativeModule.constructor, (jlong) nativeModule);
+    return env->NewObject(env->FindClass("unsafe/NativeModule"), IDS.nativeModule.constructor,
+                          (jlong) nativeModule,
+                          env->NewStringUTF(nativeModule->errors.c_str()));
 }
 
 /*

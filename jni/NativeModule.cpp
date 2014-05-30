@@ -128,8 +128,6 @@ NativeModule::NativeModule(std::string _fileName, std::string _sourceCode, std::
 fileName(_fileName),
 sourceCode(_sourceCode),
 compilerArgs(_compilerArgs){
-    const std::chrono::time_point<std::chrono::steady_clock> t0 = std::chrono::high_resolution_clock::now();
-
     llvm::InitializeNativeTarget();
     
 	// Arguments to pass to the clang frontend
@@ -141,10 +139,10 @@ compilerArgs(_compilerArgs){
     // We'll fake the contents of this file later
 	args.push_back(strdup(fileName.c_str()));
     
-    
 	// The compiler invocation needs a DiagnosticsEngine so it can report problems
+    llvm::raw_string_ostream errs(errors);
     llvm::IntrusiveRefCntPtr<clang::DiagnosticOptions> DiagOpts(new clang::DiagnosticOptions());
-	clang::TextDiagnosticPrinter *DiagClient = new clang::TextDiagnosticPrinter(llvm::errs(), DiagOpts.getPtr());
+	clang::TextDiagnosticPrinter *DiagClient = new clang::TextDiagnosticPrinter(errs, DiagOpts.getPtr());
     llvm::IntrusiveRefCntPtr<clang::DiagnosticIDs> DiagIDs(new DiagnosticIDs());
     llvm::IntrusiveRefCntPtr<DiagnosticsEngine>	Diags(new DiagnosticsEngine(DiagIDs, DiagOpts.getPtr(), DiagClient, /*Owns it*/ true));
     
@@ -195,9 +193,6 @@ compilerArgs(_compilerArgs){
 	// Grab the module built by the EmitLLVMOnlyAction (will be owned by the execution engine)
 	module = codeGenAction->takeModule();
     
-    const std::chrono::time_point<std::chrono::steady_clock> t1 = std::chrono::high_resolution_clock::now();
-    fprintf(stderr, "- compile %fs\n", (t1 - t0).count()/1e9);
-    
     std::string ErrStr;
     executionEngine.reset(llvm::EngineBuilder(module)
     .setErrorStr(&ErrStr)
@@ -205,8 +200,8 @@ compilerArgs(_compilerArgs){
     .setOptLevel(llvm::CodeGenOpt::Aggressive)
     .create());
     if (!executionEngine) {
-        fprintf(stderr, "Cannot create execution engine: %s.\n", ErrStr.c_str());
-        return; //FIXME: should throw an exception probably
+        errs <<  "Cannot create execution engine: " <<  ErrStr << "\n";
+        return;
     }
     
     // Create a PassManager to hold and optimize the collection of passes we are
@@ -244,28 +239,18 @@ compilerArgs(_compilerArgs){
     executionEngine->getTargetMachine()->addAnalysisPasses(FPM);
     executionEngine->getTargetMachine()->addAnalysisPasses(Passes);
 
-    const std::chrono::time_point<std::chrono::steady_clock> t2 = std::chrono::high_resolution_clock::now();
-    fprintf(stderr, "- build passes %fs\n", (t2 - t1).count()/1e9);
     
     FPM.doInitialization();
-    // For each function in the module
+    // Run function-level optimizations for each function in the module
     for (llvm::Module::iterator it = module->begin(), E = module->end(); it != E; ++it) {
-        fprintf(stderr, "    . optimizing: %s\n", (*it).getName().str().c_str());
         FPM.run(*it);
     }
-    
-    
     FPM.doFinalization();
-    
-    const std::chrono::time_point<std::chrono::steady_clock> t3 = std::chrono::high_resolution_clock::now();
-    fprintf(stderr, "- run function passes  %fs\n", (t3 - t2).count()/1e9);
 
     // Run module level passes
     Passes.run(*module);
     
-    const std::chrono::time_point<std::chrono::steady_clock> t4 = std::chrono::high_resolution_clock::now();
-    fprintf(stderr, "- run module passes  %fs\n", (t4 - t3).count()/1e9);
-    
+    // Tell the ExecutionEngine we're done
     executionEngine->generateCodeForModule(module);
     executionEngine->finalizeObject();
     
@@ -273,12 +258,6 @@ compilerArgs(_compilerArgs){
     for (llvm::Module::iterator it = module->begin(), E = module->end(); it != E; ++it) {
         functions.push_back(it);
     }
-    
-    const std::chrono::time_point<std::chrono::steady_clock> t5 = std::chrono::high_resolution_clock::now();
-    fprintf(stderr, "- full build %fs\n", (t5 - t0).count()/1e9);
-    
-    // Call it
-    fprintf(stderr, "Done!\n");
 }
 
 
