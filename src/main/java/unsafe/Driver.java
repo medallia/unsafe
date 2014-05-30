@@ -211,9 +211,10 @@ public class Driver {
 				"}\n";
 
 		code = "#include <jni.h>\n" +
-				"extern \"C\" void foo(JNIEnv * env, jobject x, jobjectArray y) {" +
+				"extern \"C\" jobjectArray foo(JNIEnv * env, jobject x, jobjectArray y) {" +
 				"jmethodID toStringId = env->GetMethodID(env->GetObjectClass(x),\"toString\", \"()Ljava/lang/String;\");" +
 				"env->CallObjectMethod(x, toStringId);" +
+				"return y;" +
 				"}";
 		NativeModule nativeModule = compileInMemory(code,
 				new String[] {
@@ -235,13 +236,14 @@ public class Driver {
 		if (function != null) {
 			for (int i = 3; i --> 0;) {
 				final long start = System.nanoTime();
-				function.invoke(null, new Object() {
+				final Object result = function.invoke(null, new Object() {
 					@Override
 					public String toString() {
 						System.out.println("Called .toString() from native code");
 						return super.toString();
 					}
-				}, new String[] {""});
+				}, new String[]{"je"});
+				System.out.println("result = " + Arrays.toString((String[])result));
 				final long end = System.nanoTime();
 				System.out.println((end - start) / 1e3 + "us");
 			}

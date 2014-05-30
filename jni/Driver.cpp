@@ -21,6 +21,11 @@ static struct {
         jmethodID getNameMtdId;
         jmethodID isArrayMtdId;
     } javaClass;
+
+    // java.lang.Long
+    struct {
+        jmethodID constructor;
+    } javaLong;
 } IDS;
 
 // Convert a java string to std::string
@@ -74,6 +79,9 @@ JNIEXPORT void JNICALL Java_unsafe_Driver_initializeNativeCode
     const jclass javaClass_jClass = env->FindClass("java/lang/Class");
     IDS.javaClass.getNameMtdId = env->GetMethodID(javaClass_jClass, "getName", "()Ljava/lang/String;");
     IDS.javaClass.isArrayMtdId = env->GetMethodID(javaClass_jClass, "isArray", "()Z");
+    
+    const jclass javaLong_jClass = env->FindClass("java/lang/Long");
+    IDS.javaLong.constructor = env->GetMethodID(javaLong_jClass, "<init>", "(J)V");
 }
     
 /*
@@ -194,8 +202,23 @@ JNIEXPORT jobject JNICALL Java_unsafe_Driver_invoke
         nativeArgs[argDef.getArgNo()] = val;
     }
     
-    nativeModule->runFunction(func, nativeArgs);
-
+    llvm::GenericValue result = nativeModule->runFunction(func, nativeArgs);
+    
+    if(func->getReturnType()->isIntegerTy() && result.IntVal.getNumWords() == 1) {
+        return env->NewObject(env->FindClass("java/lang/Long"), IDS.javaLong.constructor, (jlong)*result.IntVal.getRawData());
+    } else if (func->getReturnType()->isPointerTy()) {
+        const llvm::Type* elementType = func->getReturnType()->getPointerElementType();
+        if (elementType->isStructTy()) {
+            const llvm::StructType* structType = static_cast<const llvm::StructType*>(elementType);
+            if (!structType->isLiteral()) {
+                if (   structType->getName() == "class._jobject"
+                    || structType->getName() == "class._jstring"
+                    || structType->getName() == "class._jobjectArray") {
+                    return (jobject) result.PointerVal;
+                }
+            }
+        }
+    }
     return nullptr;
 }
 
