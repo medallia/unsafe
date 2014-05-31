@@ -123,15 +123,22 @@ void populateLTOPassManager(llvm::PassManagerBase &PM) {
     PM.add(llvm::createCFGSimplificationPass());
 }
 
+// Quick & dirty 'const char *' vector that frees on destruction
+// assumes that the strings were malloc'd
+class arg_vector : public std::vector<const char *> {
+public:
+    using std::vector<const char *>::vector;
+    ~arg_vector() { for (const char * elem : *this) std::free((void*)elem); }
+};
 
 NativeModule::NativeModule(std::string _fileName, std::string _sourceCode, std::vector<std::string> _compilerArgs) :
 fileName(_fileName),
 sourceCode(_sourceCode),
-compilerArgs(_compilerArgs){
+compilerArgs(_compilerArgs) {
     llvm::InitializeNativeTarget();
     
 	// Arguments to pass to the clang frontend
-    std::vector<const char *> args;
+    arg_vector args;
     for (std::string arg : compilerArgs) {
         args.push_back(strdup(arg.c_str()));
     }
@@ -142,7 +149,7 @@ compilerArgs(_compilerArgs){
 	// The compiler invocation needs a DiagnosticsEngine so it can report problems
     llvm::raw_string_ostream errs(errors);
     llvm::IntrusiveRefCntPtr<clang::DiagnosticOptions> DiagOpts(new clang::DiagnosticOptions());
-	clang::TextDiagnosticPrinter *DiagClient = new clang::TextDiagnosticPrinter(errs, DiagOpts.getPtr());
+	clang::TextDiagnosticPrinter *DiagClient = new clang::TextDiagnosticPrinter(errs, DiagOpts.getPtr()); //This is owned by Diags
     llvm::IntrusiveRefCntPtr<clang::DiagnosticIDs> DiagIDs(new DiagnosticIDs());
     llvm::IntrusiveRefCntPtr<DiagnosticsEngine>	Diags(new DiagnosticsEngine(DiagIDs, DiagOpts.getPtr(), DiagClient, /*Owns it*/ true));
     
@@ -184,11 +191,6 @@ compilerArgs(_compilerArgs){
 	llvm::OwningPtr<clang::CodeGenAction> codeGenAction(new clang::EmitLLVMOnlyAction(&context));
 	if (!Clang.ExecuteAction(*codeGenAction))
 		return;
-
-    // Release all the argument copies we made earlier
-    for (const char * s : args) {
-        std::free((void*)s);
-    }
 
 	// Grab the module built by the EmitLLVMOnlyAction (will be owned by the execution engine)
 	module = codeGenAction->takeModule();

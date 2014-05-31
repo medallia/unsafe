@@ -12,7 +12,7 @@ class NativeModule {
     llvm::LLVMContext context;
     llvm::Module * module; // This is owned by the execution engine
     std::unique_ptr<llvm::ExecutionEngine> executionEngine;
-    std::vector<llvm::Function*> functions;
+    std::vector<llvm::Function*> functions; // These are owned by the module
     std::string fileName;
     std::string sourceCode;
     std::vector<std::string> compilerArgs;
