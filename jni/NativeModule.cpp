@@ -262,7 +262,6 @@ compilerArgs(_compilerArgs) {
     }
 }
 
-
 std::vector<llvm::Function*> NativeModule::getFunctions() const {
     return functions;
 }
