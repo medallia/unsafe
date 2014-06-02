@@ -16,7 +16,6 @@
 #include <llvm/ADT/OwningPtr.h>
 
 #include <llvm/Config/config.h>
-#include <llvm/Support/TargetSelect.h>
 #include <clang/Basic/TargetInfo.h>
 #include <llvm/Support/Host.h>
 #include <llvm/Option/ArgList.h>
@@ -135,7 +134,6 @@ NativeModule::NativeModule(std::string _fileName, std::string _sourceCode, std::
 fileName(_fileName),
 sourceCode(_sourceCode),
 compilerArgs(_compilerArgs) {
-    llvm::InitializeNativeTarget();
     
 	// Arguments to pass to the clang frontend
     arg_vector args;

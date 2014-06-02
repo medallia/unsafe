@@ -66,7 +66,8 @@ extern "C" {
 JNIEXPORT void JNICALL Java_unsafe_Driver_initializeNativeCode
 (JNIEnv * env, jclass driverClass) {
     llvm::llvm_start_multithreaded();
-    
+    llvm::InitializeNativeTarget();
+
     // Lookup commonly used method and field ids.
     // Note that it is not safe to cache classes
     const jclass nativeFunction_jClass = env->FindClass("unsafe/NativeFunction");
