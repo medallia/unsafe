@@ -59,5 +59,4 @@ public class ArgumentPassing {
 		Path javaHome = Paths.get(System.getProperty("java.home"));
 		return javaHome.endsWith("jre") ? javaHome.getParent() : javaHome;
 	}
-
 }

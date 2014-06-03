@@ -45,9 +45,9 @@ public class NativeFunction {
 	 *     <li>any integer type is assigned the result of calling {@code longValue()} on the passed object</li>
 	 *     <li>{@code JNIEnv*} is assigned the current JNI environment pointer. The passed Java argument is ignored. </li>
 	 *     <li>{@code jobject} the java object is passed as is. </li>
-	 *     <li>{@code jstring} the string is passed as is. throws and {@link java.lang.IllegalArgumentException}
+	 *     <li>{@code jstring} the string is passed as is. Throws an {@link java.lang.IllegalArgumentException}
 	 *     if the argument is not a string </li>
-	 *     <li>{@code jobjectArray} the array is passed as is. throws and {@link java.lang.IllegalArgumentException}
+	 *     <li>{@code jobjectArray} the array is passed as is. Throws an {@link java.lang.IllegalArgumentException}
 	 *     if the argument is not a valid java object array. Note that an array of arrays (e.g. int[][]) is an object array.</li>
 	 * </ul>
 	 *
