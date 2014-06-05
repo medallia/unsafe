@@ -8,3 +8,4 @@ target/
 clang-all/
 *.o
 libUnsafeDriver.dylib
+libUnsafeDriver.so
