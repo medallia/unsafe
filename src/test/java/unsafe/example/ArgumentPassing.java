@@ -4,9 +4,6 @@ import unsafe.Driver;
 import unsafe.NativeFunction;
 import unsafe.NativeModule;
 
-import java.nio.file.Path;
-import java.nio.file.Paths;
-
 /**
  * Shows how arguments are passed to and from Java
  */
@@ -19,18 +16,7 @@ public class ArgumentPassing {
 				"return ll;" +
 				"}";
 
-		// Since we will require JNI, we need to pass the necessary include directories to the Clang compiler.
-		final Path javaHome = getJavaHome();
-		final Path xcodeRoot = Paths.get("/Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain");
-		final NativeModule nativeModule = Driver.compileInMemory(code,
-				new String[]{
-						"-I" + javaHome.resolve("include"),
-						"-I" + javaHome.resolve("include/darwin"),
-						"-I" + xcodeRoot.resolve("usr/lib/c++/v1"),
-						"-I" + xcodeRoot.resolve("usr/lib/clang/5.1/include"),
-						"-I" + xcodeRoot.resolve("usr/include"),
-				}
-		);
+		final NativeModule nativeModule = Driver.compileInMemory(code);
 
 		// Check for errors compiling
 		if (nativeModule.hasErrors()) {
@@ -55,8 +41,4 @@ public class ArgumentPassing {
 		System.out.println("result = " + result);
 	}
 
-	private static Path getJavaHome() {
-		Path javaHome = Paths.get(System.getProperty("java.home"));
-		return javaHome.endsWith("jre") ? javaHome.getParent() : javaHome;
-	}
 }
