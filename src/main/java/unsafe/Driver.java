@@ -120,10 +120,7 @@ public class Driver {
 			final Process process = new ProcessBuilder(CPP_COMPILER, "-v", source.toString())
 					.redirectError(Redirect.to(output.getFile()))
 					.start();
-			if (!process.waitFor(30, TimeUnit.SECONDS)) {
-				// Just kill it and be done with it.
-				process.destroy();
-			}
+			process.waitFor(); // FIXME: use a timeout on Java 8
 			boolean capturing = false;
 			// Parse the output and build the include parameters
 			try (final BufferedReader br = new BufferedReader(new FileReader(output.getFile()))) {
