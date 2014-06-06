@@ -8,7 +8,7 @@ import java.io.IOException;
 /** Runs a simple benchmark using AVX, SSE and Clang's auto-vectorization */
 public class AvxBenchmark {
 	public static void main(String[] args) throws IOException {
-		final NativeModule nativeModule = Driver.compileInMemory(Util.loadResource("avx.cpp"),
+		final NativeModule nativeModule = Driver.compileInMemory(Util.loadResource(AvxBenchmark.class, "avx.cpp"),
 				"-std=c++11",
 				"-O3");
 		// Check for errors compiling

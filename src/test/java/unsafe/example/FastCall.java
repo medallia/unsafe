@@ -9,6 +9,7 @@ import java.io.IOException;
 /**
  * This example shows how to create a proxy to minimize call cost to native code, while
  * being able to still dynamically generate code.
+ * This is about 3 orders of magnitude faster than using plain {@link unsafe.NativeFunction#invoke(Object...)}
  *
  * The generated code must conform to a fixed interface.
  */
@@ -38,7 +39,7 @@ public class FastCall {
 		// When the class is initialized, we compile an implementation for the process() method
 		// and register it with the JVM for this class. See fastCallShim.cpp.
 		try {
-			HANDLER = Driver.compileInMemory(Util.loadResource("fastCallShim.cpp"));
+			HANDLER = Driver.compileInMemory(Util.loadResource(FastCall.class, "fastCallShim.cpp"));
 			if (HANDLER.hasErrors()) {
 				System.err.println(HANDLER.getErrors());
 			}
