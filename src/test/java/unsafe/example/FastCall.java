@@ -6,24 +6,37 @@ import unsafe.NativeModule;
 
 import java.io.IOException;
 
+/**
+ * This example shows how to create a proxy to minimize call cost to native code, while
+ * being able to still dynamically generate code.
+ *
+ * The generated code must conform to a fixed interface.
+ */
 public class FastCall {
-	/** This is called by native code */
+	/** The pointer to the target function. This is called by native code. */
 	private final long functionPtr;
 
-	/** This is needed to prevent garbage collection of the module containing the compiled code */
+	/** This is needed to prevent garbage collection of the module containing the compiled code. */
 	private final NativeFunction function;
 
 	public FastCall(NativeFunction initializer) {
 		this.function = initializer;
+		// Call the initializer to obtain a function pointer to the actual target
 		this.functionPtr = (Long)initializer.invoke();
 	}
 
-
+	/**
+	 * The implementation for this function will be compiled and loaded in the static initializer below.
+	 * When called, it will execute the function pointed at by {@link #functionPtr}.
+	 */
 	public native int process(int arg);
 
-	/** This is needed to hold a reference to the compiled module for the duration of this class. */
+	/** This is needed to hold a reference to the implementation of {@link #process(int)} for the duration of this class. */
 	private static final NativeModule HANDLER;
+
 	static {
+		// When the class is initialized, we compile an implementation for the process() method
+		// and register it with the JVM for this class. See fastCallShim.cpp.
 		try {
 			HANDLER = Driver.compileInMemory(Util.loadResource("fastCallShim.cpp"));
 			if (HANDLER.hasErrors()) {
@@ -36,9 +49,8 @@ public class FastCall {
 	}
 
 	public static void main(String[] args) {
-		System.out.println("args = " + args);
 		final NativeModule nativeModule = Driver.compileInMemory("#include<jni.h>\n" +
-				// Teh actual useful function we want to run
+				// The actual useful function we want to run
 				"extern \"C\" jint square(JNIEnv * env, jint in) { return in*in; }\n" +
 				// This is a helper function to get the pointer to the 'square' function
 				"extern \"C\" jlong initializer() { return (jlong) square; }");
@@ -47,7 +59,6 @@ public class FastCall {
 			System.out.println(nativeModule.getErrors());
 			return;
 		}
-		System.out.println("nativeModule = " + nativeModule);
 
 		System.out.println("-- testing slow call ---");
 		long sumOfSquares = 0;
@@ -60,7 +71,7 @@ public class FastCall {
 		}
 		System.out.println("sum: " + sumOfSquares);
 
-		System.out.println("-- testing fast call");
+		System.out.println("-- testing fast call ---");
 		sumOfSquares = 0;
 		final FastCall fastCall = new FastCall(nativeModule.getFunctionByName("initializer"));
 		for (int i = 0; i < 10; i++) {

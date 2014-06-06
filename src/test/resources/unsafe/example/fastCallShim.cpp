@@ -5,6 +5,7 @@ static jfieldID functionPtrField;
 
 // Function that handles the native call
 JNIEXPORT jint JNICALL handler(JNIEnv *env, jobject self, jint in) {
+    // Get's the function pointer from the object, casts and issues the call.
     return ((jint(*)(JNIEnv *, jint))env->GetLongField(self, functionPtrField))(env, in);
 }
 
