@@ -1,4 +1,4 @@
-package unsafe;
+package com.medallia.unsafe;
 
 /**
  * A compiled native function.
@@ -12,7 +12,7 @@ public class NativeFunction {
 	private final long functionPtr;
 
 	/**
-	 * The {@link unsafe.NativeModule} that originated this {@link unsafe.NativeFunction}.
+	 * The {@link com.medallia.unsafe.NativeModule} that originated this {@link com.medallia.unsafe.NativeFunction}.
 	 * Used by native code, do not rename.
 	 */
 	private final NativeModule parent;
@@ -33,7 +33,7 @@ public class NativeFunction {
 		return name;
 	}
 
-	/** @return the {@link unsafe.NativeModule} this function is a member of */
+	/** @return the {@link com.medallia.unsafe.NativeModule} this function is a member of */
 	public NativeModule getParent() {
 		return parent;
 	}

@@ -1,7 +1,7 @@
-package unsafe.example;
+package com.medallia.unsafe.example;
 
-import unsafe.Driver;
-import unsafe.NativeModule;
+import com.medallia.unsafe.Driver;
+import com.medallia.unsafe.NativeModule;
 
 import java.io.IOException;
 

@@ -1,4 +1,4 @@
-package unsafe;
+package com.medallia.unsafe;
 
 import java.io.BufferedReader;
 import java.io.File;
@@ -11,7 +11,6 @@ import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
-import java.util.concurrent.TimeUnit;
 
 /**
  * Provides methods to compile C/C++ code in-memory.

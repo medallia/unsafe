@@ -2,41 +2,41 @@
 #include <jni.h>
 /* Header for class unsafe_Driver */
 
-#ifndef _Included_unsafe_Driver
-#define _Included_unsafe_Driver
+#ifndef _Included_com_medallia_unsafe_Driver
+#define _Included_com_medallia_unsafe_Driver
 #ifdef __cplusplus
 extern "C" {
 #endif
 /*
  * Class:     unsafe_Driver
  * Method:    compileInMemory0
- * Signature: (Ljava/lang/String;Ljava/lang/String;[Ljava/lang/String;)Lunsafe/NativeModule;
+ * Signature: (Ljava/lang/String;Ljava/lang/String;[Ljava/lang/String;)Lcom/medallia/unsafe/NativeModule;
  */
-JNIEXPORT jobject JNICALL Java_unsafe_Driver_compileInMemory0
+JNIEXPORT jobject JNICALL Java_com_medallia_unsafe_Driver_compileInMemory0
   (JNIEnv *, jclass, jstring, jstring, jobjectArray);
 
 /*
  * Class:     unsafe_Driver
  * Method:    invoke
- * Signature: (Lunsafe/NativeFunction;[Ljava/lang/Object;)Ljava/lang/Object;
+ * Signature: (Lcom/medallia/unsafe/NativeFunction;[Ljava/lang/Object;)Ljava/lang/Object;
  */
-JNIEXPORT jobject JNICALL Java_unsafe_Driver_invoke
+JNIEXPORT jobject JNICALL Java_com_medallia_unsafe_Driver_invoke
   (JNIEnv *, jclass, jobject, jobjectArray);
 
 /*
  * Class:     unsafe_Driver
  * Method:    getFunctions
- * Signature: (Lunsafe/NativeModule;)[Lunsafe/NativeFunction;
+ * Signature: (Lcom/medallia/unsafe/NativeModule;)[Lcom/medallia/unsafe/NativeFunction;
  */
-JNIEXPORT jobjectArray JNICALL Java_unsafe_Driver_getFunctions
+JNIEXPORT jobjectArray JNICALL Java_com_medallia_unsafe_Driver_getFunctions
   (JNIEnv *, jclass, jobject);
 
 /*
  * Class:     unsafe_Driver
  * Method:    delete
- * Signature: (Lunsafe/NativeModule;)V
+ * Signature: (Lcom/medallia/unsafe/NativeModule;)V
  */
-JNIEXPORT void JNICALL Java_unsafe_Driver_delete
+JNIEXPORT void JNICALL Java_com_medallia_unsafe_Driver_delete
   (JNIEnv *, jclass, jobject);
 
 /*
@@ -44,7 +44,7 @@ JNIEXPORT void JNICALL Java_unsafe_Driver_delete
  * Method:    initializeNativeCode
  * Signature: ()V
  */
-JNIEXPORT void JNICALL Java_unsafe_Driver_initializeNativeCode
+JNIEXPORT void JNICALL Java_com_medallia_unsafe_Driver_initializeNativeCode
   (JNIEnv *, jclass);
 
 #ifdef __cplusplus

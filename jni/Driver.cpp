@@ -63,19 +63,19 @@ extern "C" {
  * Method:    initializeNativeCode
  * Signature: ()V
  */
-JNIEXPORT void JNICALL Java_unsafe_Driver_initializeNativeCode
+JNIEXPORT void JNICALL Java_com_medallia_unsafe_Driver_initializeNativeCode
 (JNIEnv * env, jclass driverClass) {
     llvm::llvm_start_multithreaded();
     llvm::InitializeNativeTarget();
 
     // Lookup commonly used method and field ids.
     // Note that it is not safe to cache classes
-    const jclass nativeFunction_jClass = env->FindClass("unsafe/NativeFunction");
-    IDS.nativeFunction.constructor = env->GetMethodID(nativeFunction_jClass, "<init>", "(JLjava/lang/String;Lunsafe/NativeModule;)V");
+    const jclass nativeFunction_jClass = env->FindClass("com/medallia/unsafe/NativeFunction");
+    IDS.nativeFunction.constructor = env->GetMethodID(nativeFunction_jClass, "<init>", "(JLjava/lang/String;Lcom/medallia/unsafe/NativeModule;)V");
     IDS.nativeFunction.functionPtrFldId = env->GetFieldID(nativeFunction_jClass, "functionPtr", "J");
-    IDS.nativeFunction.parentFldId = env->GetFieldID(nativeFunction_jClass, "parent", "Lunsafe/NativeModule;");
+    IDS.nativeFunction.parentFldId = env->GetFieldID(nativeFunction_jClass, "parent", "Lcom/medallia/unsafe/NativeModule;");
     
-    const jclass nativeModule_jClass = env->FindClass("unsafe/NativeModule");
+    const jclass nativeModule_jClass = env->FindClass("com/medallia/unsafe/NativeModule");
     IDS.nativeModule.constructor = env->GetMethodID(nativeModule_jClass, "<init>", "(JLjava/lang/String;)V");
     IDS.nativeModule.modulePtrFldId = env->GetFieldID(nativeModule_jClass, "modulePtr", "J");
 
@@ -90,9 +90,9 @@ JNIEXPORT void JNICALL Java_unsafe_Driver_initializeNativeCode
 /*
  * Class:     unsafe_Driver
  * Method:    compileInMemory0
- * Signature: (Ljava/lang/String;Ljava/lang/String;[Ljava/lang/String;)Lunsafe/NativeModule;
+ * Signature: (Ljava/lang/String;Ljava/lang/String;[Ljava/lang/String;)Lcom/medallia/unsafe/NativeModule;
  */
-JNIEXPORT jobject JNICALL Java_unsafe_Driver_compileInMemory0
+JNIEXPORT jobject JNICALL Java_com_medallia_unsafe_Driver_compileInMemory0
 (JNIEnv * env, jclass clazz, jstring fileName, jstring sourceCode, jobjectArray compilerArgs) {
     std::vector<std::string> args;
     const jsize nArgs = env->GetArrayLength(compilerArgs);
@@ -107,7 +107,7 @@ JNIEXPORT jobject JNICALL Java_unsafe_Driver_compileInMemory0
     );
     
     // Create and initinalize a new unsafe.NativeModule
-    return env->NewObject(env->FindClass("unsafe/NativeModule"), IDS.nativeModule.constructor,
+    return env->NewObject(env->FindClass("com/medallia/unsafe/NativeModule"), IDS.nativeModule.constructor,
                           (jlong) nativeModule,
                           env->NewStringUTF(nativeModule->errors.c_str()));
 }
@@ -115,9 +115,9 @@ JNIEXPORT jobject JNICALL Java_unsafe_Driver_compileInMemory0
 /*
  * Class:     unsafe_Driver
  * Method:    invoke
- * Signature: (Lunsafe/NativeFunction;[Ljava/lang/Object;)Ljava/lang/Object;
+ * Signature: (Lcom/medallia/unsafe/NativeFunction;[Ljava/lang/Object;)Ljava/lang/Object;
  */
-JNIEXPORT jobject JNICALL Java_unsafe_Driver_invoke
+JNIEXPORT jobject JNICALL Java_com_medallia_unsafe_Driver_invoke
 (JNIEnv * env, jclass clazz, jobject aNativeFunction, jobjectArray arguments) {
     // Find the llvm::Function*
     llvm::Function* func = (llvm::Function*) env->GetLongField(aNativeFunction, IDS.nativeFunction.functionPtrFldId);
@@ -129,7 +129,6 @@ JNIEXPORT jobject JNICALL Java_unsafe_Driver_invoke
     // extract the NativeModule instance
     NativeModule* nativeModule = (NativeModule*) env->GetLongField(aNativeModule, IDS.nativeModule.modulePtrFldId);
 
-    
     // transform args and return values
     const jsize nArgs = env->GetArrayLength(arguments);
     std::vector<llvm::GenericValue> nativeArgs(nArgs);
@@ -208,7 +207,6 @@ JNIEXPORT jobject JNICALL Java_unsafe_Driver_invoke
     }
     
     llvm::GenericValue result = nativeModule->runFunction(func, nativeArgs);
-    
     if(func->getReturnType()->isIntegerTy() && result.IntVal.getNumWords() == 1) {
         return env->NewObject(env->FindClass("java/lang/Long"), IDS.javaLong.constructor, (jlong)*result.IntVal.getRawData());
     } else if (func->getReturnType()->isPointerTy()) {
@@ -230,9 +228,9 @@ JNIEXPORT jobject JNICALL Java_unsafe_Driver_invoke
 /*
  * Class:     unsafe_Driver
  * Method:    getFunctions
- * Signature: (Lunsafe/NativeModule;)[Lunsafe/NativeFunction;
+ * Signature: (Lcom/medallia/unsafe/NativeModule;)[Lcom/medallia/unsafe/NativeFunction;
  */
-JNIEXPORT jobjectArray JNICALL Java_unsafe_Driver_getFunctions
+JNIEXPORT jobjectArray JNICALL Java_com_medallia_unsafe_Driver_getFunctions
 (JNIEnv * env, jclass clazz, jobject aNativeModule) {
     // Get a reference to a NativeModule
     const NativeModule* nativeModule = (NativeModule*) env->GetLongField(aNativeModule, IDS.nativeModule.modulePtrFldId);
@@ -241,7 +239,7 @@ JNIEXPORT jobjectArray JNICALL Java_unsafe_Driver_getFunctions
     const std::vector<llvm::Function*> nativeFunctions = nativeModule->getFunctions();
 
     // Wrap them in Java objects
-    const jclass nativeFunctionJavaClass = env->FindClass("unsafe/NativeFunction");
+    const jclass nativeFunctionJavaClass = env->FindClass("com/medallia/unsafe/NativeFunction");
 
     jobjectArray result = env->NewObjectArray((jsize)nativeFunctions.size(), nativeFunctionJavaClass, nullptr);
     for (jsize i = 0; i < nativeFunctions.size(); ++i) {
@@ -259,9 +257,9 @@ JNIEXPORT jobjectArray JNICALL Java_unsafe_Driver_getFunctions
 /*
  * Class:     unsafe_Driver
  * Method:    delete
- * Signature: (Lunsafe/NativeModule;)V
+ * Signature: (Lcom/medallia/unsafe/NativeModule;)V
  */
-JNIEXPORT void JNICALL Java_unsafe_Driver_delete
+JNIEXPORT void JNICALL Java_com_medallia_unsafe_Driver_delete
 (JNIEnv * env, jclass clazz, jobject aNativeModule) {
     // Delete the native module
     const NativeModule* nativeModule = (NativeModule*) env->GetLongField(aNativeModule, IDS.nativeModule.modulePtrFldId);

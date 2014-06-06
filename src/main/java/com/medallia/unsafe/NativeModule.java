@@ -1,4 +1,4 @@
-package unsafe;
+package com.medallia.unsafe;
 
 import java.util.HashMap;
 import java.util.Map;
@@ -15,14 +15,14 @@ public class NativeModule {
 	/** Functions available in the compiled module. Might be empty. */
 	private final NativeFunction[] functions;
 
-	/** Index for {@link unsafe.NativeFunction} by decorated name. */
+	/** Index for {@link com.medallia.unsafe.NativeFunction} by decorated name. */
 	private final Map<String, NativeFunction> nameIndex;
 
 	/** Any compilation errors */
 	private final String errors;
 
 	/**
-	 * Creates a new {@link unsafe.NativeModule}.
+	 * Creates a new {@link com.medallia.unsafe.NativeModule}.
 	 * Used by native code, do not change.
 	 */
 	@SuppressWarnings("UnusedDeclaration")

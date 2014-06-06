@@ -1,15 +1,15 @@
-package unsafe.example;
+package com.medallia.unsafe.example;
 
-import unsafe.Driver;
-import unsafe.NativeFunction;
-import unsafe.NativeModule;
+import com.medallia.unsafe.Driver;
+import com.medallia.unsafe.NativeFunction;
+import com.medallia.unsafe.NativeModule;
 
 import java.io.IOException;
 
 /**
  * This example shows how to create a proxy to minimize call cost to native code, while
  * being able to still dynamically generate code.
- * This is about 3 orders of magnitude faster than using plain {@link unsafe.NativeFunction#invoke(Object...)}
+ * This is about 3 orders of magnitude faster than using plain {@link com.medallia.unsafe.NativeFunction#invoke(Object...)}
  *
  * The generated code must conform to a fixed interface.
  */

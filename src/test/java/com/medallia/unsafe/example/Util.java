@@ -1,4 +1,4 @@
-package unsafe.example;
+package com.medallia.unsafe.example;
 
 import java.io.IOException;
 import java.io.InputStreamReader;

@@ -1,8 +1,8 @@
-package unsafe.example;
+package com.medallia.unsafe.example;
 
-import unsafe.Driver;
-import unsafe.NativeFunction;
-import unsafe.NativeModule;
+import com.medallia.unsafe.Driver;
+import com.medallia.unsafe.NativeFunction;
+import com.medallia.unsafe.NativeModule;
 
 /** Simple "Hello World" example */
 public class HelloWorld {

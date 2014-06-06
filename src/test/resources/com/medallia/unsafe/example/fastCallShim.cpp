@@ -11,7 +11,7 @@ JNIEXPORT jint JNICALL handler(JNIEnv *env, jobject self, jint in) {
 
 extern "C"
 void registerNative(JNIEnv* env) {
-    const jclass fastCallClass = env->FindClass("unsafe/example/FastCall");
+    const jclass fastCallClass = env->FindClass("com/medallia/unsafe/example/FastCall");
 
     // Lookup and store the field id
     functionPtrField = env->GetFieldID(fastCallClass, "functionPtr", "J");
