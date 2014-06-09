@@ -180,6 +180,20 @@ JNIEXPORT jobject JNICALL Java_com_medallia_unsafe_Driver_invoke
                         // Just pass the JNI Java object
                         val.PointerVal = javaVal;
                         set = true;
+                    } else if (structType->getName() == "class._jclass") {
+                        // Check that the arg is a valid jstring
+                        if (javaVal) {
+                            std::string name = getClassName(env, javaValClass);
+                            if(name != std::string("java.lang.Class")) {
+                                throwIllegalArgumentException(env,
+                                                              std::string("expected a class for arg #") + std::to_string(argDef.getArgNo())
+                                                              + std::string(" but got a ") + name);
+                                return nullptr;
+                            }
+                        }
+                        // Just pass the JNI Java object
+                        val.PointerVal = javaVal;
+                        set = true;
                     } else if (structType->getName() == "class._jobjectArray") {
                         // Check that the arg is in fact an object array of any type
                         if (javaVal) {
@@ -216,6 +230,7 @@ JNIEXPORT jobject JNICALL Java_com_medallia_unsafe_Driver_invoke
             if (!structType->isLiteral()) {
                 if (   structType->getName() == "class._jobject"
                     || structType->getName() == "class._jstring"
+                    || structType->getName() == "class._jclass"
                     || structType->getName() == "class._jobjectArray") {
                     return (jobject) result.PointerVal;
                 }
