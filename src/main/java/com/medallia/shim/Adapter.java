@@ -5,6 +5,7 @@ import com.medallia.unsafe.NativeFunction;
 import com.medallia.unsafe.NativeModule;
 
 import java.io.StringWriter;
+import java.lang.annotation.Native;
 import java.lang.reflect.Method;
 import java.lang.reflect.Modifier;
 import java.util.ArrayList;
@@ -51,6 +52,18 @@ public abstract class Adapter {
 			}
 		}
 
+		final String sourceCode = generateNativeMethod(nativeMethods);
+		final NativeModule nativeModule = Driver.compileInMemory(sourceCode);
+		if (nativeModule.hasErrors()) {
+			System.out.println(nativeModule.getErrors());
+		}
+
+		final NativeFunction registerNative = nativeModule.getFunctionByName("registerNative");
+		registerNative.invoke(null, aClass);
+		return new NativeBindings(nativeModule, nativeMethods);
+	}
+
+	private static String generateNativeMethod(List<Method> nativeMethods) {
 		final StringWriter sw = new StringWriter();
 		final IndentedPrintWriter pw = new IndentedPrintWriter(sw);
 		pw.println("#include <jni.h>");
@@ -71,17 +84,7 @@ public abstract class Adapter {
 
 		pw.println("}");
 
-
-		System.out.println(sw);
-
-		final NativeModule nativeModule = Driver.compileInMemory(sw.toString());
-		if (nativeModule.hasErrors()) {
-			System.out.println(nativeModule.getErrors());
-		}
-
-		final NativeFunction registerNative = nativeModule.getFunctionByName("registerNative");
-		registerNative.invoke(null, aClass);
-		return new NativeBindings(nativeModule, nativeMethods);
+		return sw.toString();
 	}
 
 	private static void generateRegisterNative(List<Method> nativeMethods, IndentedPrintWriter pw) {
@@ -158,9 +161,10 @@ public abstract class Adapter {
 
 	private static void generateNativeMethodShim(IndentedPrintWriter pw, Method nativeMethod, int index) {
 		pw.printf("%s %s(JNIEnv* env, jobject self", toJNIType(nativeMethod.getReturnType()), nativeMethod.getName());
-		int argNo = 0;
-		for (Class<?> argType : nativeMethod.getParameterTypes()) {
-			pw.printf(", %s arg%d", toJNIType(argType), argNo++);
+		final Class<?>[] parameterTypes = nativeMethod.getParameterTypes();
+		for (int i = 0; i < parameterTypes.length; i++) {
+			final Class<?> argType = parameterTypes[i];
+			pw.printf(", %s arg%d", toJNIType(argType), i);
 		}
 		pw.println(") {");
 		pw.indent();
@@ -171,19 +175,17 @@ public abstract class Adapter {
 
 		// Cast the function pointer to the correct type
 		pw.printf("((%s(*)(JNIEnv*, jobject", toJNIType(nativeMethod.getReturnType()));
-		for (Class<?> argType : nativeMethod.getParameterTypes()) {
+		for (Class<?> argType : parameterTypes) {
 			pw.printf(", %s", toJNIType(argType));
 		}
 		pw.printf("))_getFunction(env, self, %d))", index);
 
 		// Call it
 		pw.printf("(env, self");
-		argNo = 0;
-		for (Class<?> argType : nativeMethod.getParameterTypes()) {
-			pw.printf(", arg%d", argNo++);
+		for (int i = 0; i < parameterTypes.length; i++) {
+			pw.printf(", arg%d", i);
 		}
 		pw.println(");");
-
 
 		pw.dedent();
 		pw.println("}");

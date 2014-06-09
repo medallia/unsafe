@@ -20,10 +20,10 @@ public class FastCall {
 	/** This is needed to prevent garbage collection of the module containing the compiled code. */
 	private final NativeFunction function;
 
-	public FastCall(NativeFunction initializer) {
-		this.function = initializer;
-		// Call the initializer to obtain a function pointer to the actual target
-		this.functionPtr = (Long)initializer.invoke();
+	public FastCall(NativeFunction target) {
+		this.function = target;
+		// Save a pointer to the compiled function
+		this.functionPtr = target.getPointerToCompiledFunction();
 	}
 
 	/**
@@ -52,16 +52,14 @@ public class FastCall {
 	public static void main(String[] args) {
 		final NativeModule nativeModule = Driver.compileInMemory("#include<jni.h>\n" +
 				// The actual useful function we want to run
-				"extern \"C\" jint square(JNIEnv * env, jint in) { return in*in; }\n" +
-				// This is a helper function to get the pointer to the 'square' function
-				"extern \"C\" jlong initializer() { return (jlong) square; }");
+				"extern \"C\" jint square(JNIEnv * env, jint in) { return in*in; }");
 
 		if (nativeModule.hasErrors()) {
 			System.out.println(nativeModule.getErrors());
 			return;
 		}
 
-		System.out.println("-- testing slow call ---");
+		System.out.println("--- testing slow call ---");
 		long sumOfSquares = 0;
 		final NativeFunction slowCall = nativeModule.getFunctionByName("square");
 		for (int i = 0; i < 10; i++) {
@@ -72,9 +70,9 @@ public class FastCall {
 		}
 		System.out.println("sum: " + sumOfSquares);
 
-		System.out.println("-- testing fast call ---");
+		System.out.println("--- testing fast call ---");
 		sumOfSquares = 0;
-		final FastCall fastCall = new FastCall(nativeModule.getFunctionByName("initializer"));
+		final FastCall fastCall = new FastCall(slowCall);
 		for (int i = 0; i < 10; i++) {
 			long start = System.nanoTime();
 			sumOfSquares += fastCall.process(i);
