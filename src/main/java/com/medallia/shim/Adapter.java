@@ -12,23 +12,29 @@ import java.util.List;
 
 public abstract class Adapter {
 
-	/** Holds pointers to functions */
+	/** Holds pointers to functions needed by the native code. */
 	private final long[] functions;
 
 	protected Adapter(NativeBindings bindings, NativeModule implementation) {
 		functions = new long[bindings.nativeMethods.size()];
 
-		for (Method nativeMethod : bindings.nativeMethods) {
-			final NativeFunction functionByName = implementation.getFunctionByName(nativeMethod.getName());
-			if (functionByName == null) {
+		for (int i = 0; i < bindings.nativeMethods.size(); i++) {
+			final Method nativeMethod = bindings.nativeMethods.get(i);
+			final NativeFunction compiledFunction = implementation.getFunctionByName(nativeMethod.getName());
+			// TODO: we should type-check.
+			if (compiledFunction == null) {
 				throw new IllegalArgumentException("Missing implementation for: " + nativeMethod);
 			}
 			// We should get the pointer to the function here somehow.
+			functions[i] = compiledFunction.getPointerToCompiledFunction();
 		}
 	}
 
-	static class NativeBindings {
+	public static class NativeBindings {
+		/** Needed to prevent garbage collection */
 		private final NativeModule nativeModule;
+
+		/** List of native methods in the order used shim generation. */
 		private final List<Method> nativeMethods;
 
 		private NativeBindings(NativeModule nativeModule, List<Method> nativeMethods) {
@@ -221,9 +227,5 @@ public abstract class Adapter {
 			jniType = "jobject";
 		}
 		return jniType;
-	}
-
-	public static void main(String[] args) {
-		System.out.println(new Test(null));
 	}
 }

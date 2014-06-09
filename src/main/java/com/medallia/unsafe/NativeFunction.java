@@ -17,15 +17,19 @@ public class NativeFunction {
 	 */
 	private final NativeModule parent;
 
+	/** pointer to the compiled function's entry point. */
+	private final long pointerToCompiledFunction;
+
 	/** this function's decorated name */
 	private final String name;
 
 	/** Called by native code. */
 	@SuppressWarnings("UnusedDeclaration")
-	private NativeFunction(long functionPtr, String name, NativeModule parent) {
+	private NativeFunction(long functionPtr, String name, NativeModule parent, long pointerToCompiledFunction) {
 		this.functionPtr = functionPtr;
 		this.name = name;
 		this.parent = parent;
+		this.pointerToCompiledFunction = pointerToCompiledFunction;
 	}
 
 	/** @return the function's decorated name */
@@ -36,6 +40,11 @@ public class NativeFunction {
 	/** @return the {@link com.medallia.unsafe.NativeModule} this function is a member of */
 	public NativeModule getParent() {
 		return parent;
+	}
+
+	/** @return a pointer to the compiled function. May be zero if the function is intrinsic. */
+	public long getPointerToCompiledFunction() {
+		return pointerToCompiledFunction;
 	}
 
 	/**

@@ -22,6 +22,7 @@ public:
     NativeModule(std::string fileName, std::string sourceCode, std::vector<std::string> compilerArgs);
     std::vector<llvm::Function*> getFunctions() const;
     llvm::GenericValue runFunction(llvm::Function *F, const std::vector<llvm::GenericValue> &ArgValues);
+    void* getPointerToFunction(llvm::Function *F) const;
 };
 
 #endif

@@ -271,3 +271,8 @@ llvm::GenericValue NativeModule::runFunction(llvm::Function *function, const std
     }
     return result;
 }
+
+void* NativeModule::getPointerToFunction(llvm::Function *F) const {
+    return executionEngine->getPointerToFunction(F);
+}
+

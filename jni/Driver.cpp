@@ -71,7 +71,7 @@ JNIEXPORT void JNICALL Java_com_medallia_unsafe_Driver_initializeNativeCode
     // Lookup commonly used method and field ids.
     // Note that it is not safe to cache classes
     const jclass nativeFunction_jClass = env->FindClass("com/medallia/unsafe/NativeFunction");
-    IDS.nativeFunction.constructor = env->GetMethodID(nativeFunction_jClass, "<init>", "(JLjava/lang/String;Lcom/medallia/unsafe/NativeModule;)V");
+    IDS.nativeFunction.constructor = env->GetMethodID(nativeFunction_jClass, "<init>", "(JLjava/lang/String;Lcom/medallia/unsafe/NativeModule;J)V");
     IDS.nativeFunction.functionPtrFldId = env->GetFieldID(nativeFunction_jClass, "functionPtr", "J");
     IDS.nativeFunction.parentFldId = env->GetFieldID(nativeFunction_jClass, "parent", "Lcom/medallia/unsafe/NativeModule;");
     
@@ -261,7 +261,8 @@ JNIEXPORT jobjectArray JNICALL Java_com_medallia_unsafe_Driver_getFunctions
         const jobject javaNativeFunction = env->NewObject(nativeFunctionJavaClass, IDS.nativeFunction.constructor,
                                                           (jlong)nativeFunctions[i],
                                                           env->NewStringUTF(nativeFunctions[i]->getName().str().c_str()),
-                                                          aNativeModule);
+                                                          aNativeModule,
+                                                          nativeFunctions[i]->isIntrinsic() ? 0L : nativeModule->getPointerToFunction(nativeFunctions[i]));
         env->SetObjectArrayElement(result, i, javaNativeFunction);
     }
 
