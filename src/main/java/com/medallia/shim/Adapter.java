@@ -5,7 +5,6 @@ import com.medallia.unsafe.NativeFunction;
 import com.medallia.unsafe.NativeModule;
 
 import java.io.StringWriter;
-import java.lang.annotation.Native;
 import java.lang.reflect.Method;
 import java.lang.reflect.Modifier;
 import java.util.ArrayList;
@@ -150,7 +149,7 @@ public abstract class Adapter {
 
 
 	private static void generateGetFunctionHelper(IndentedPrintWriter pw) {
-		pw.println("jlong _getFunction(JNIEnv* env, jobject self, jint index) {");
+		pw.println("inline jlong _getFunction(JNIEnv* env, jobject self, jint index) {");
 		pw.indent();
 		pw.println("jlong functionPtr;");
 		pw.println("env->GetLongArrayRegion((jlongArray) env->GetObjectField(self, functionsFldId), index, 1, &functionPtr);");
