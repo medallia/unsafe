@@ -10,6 +10,7 @@ import java.util.Map;
  */
 public class NativeModule {
 	/** Pointer to underlying module. Used by native code, do not rename. */
+	@Native
 	private final long modulePtr;
 
 	/** Functions available in the compiled module. Might be empty. */
@@ -25,7 +26,7 @@ public class NativeModule {
 	 * Creates a new {@link com.medallia.unsafe.NativeModule}.
 	 * Used by native code, do not change.
 	 */
-	@SuppressWarnings("UnusedDeclaration")
+	@Native
 	private NativeModule(long modulePtr, String errors) {
 		this.modulePtr = modulePtr;
 		this.errors = errors;

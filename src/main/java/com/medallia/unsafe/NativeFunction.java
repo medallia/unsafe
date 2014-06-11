@@ -9,12 +9,14 @@ public class NativeFunction {
 	 * Pointer to the underlying llvm::Function.
 	 * Used by native code, do not rename.
 	 */
+	@Native
 	private final long functionPtr;
 
 	/**
 	 * The {@link com.medallia.unsafe.NativeModule} that originated this {@link com.medallia.unsafe.NativeFunction}.
 	 * Used by native code, do not rename.
 	 */
+	@Native
 	private final NativeModule parent;
 
 	/** pointer to the compiled function's entry point. */
@@ -24,7 +26,7 @@ public class NativeFunction {
 	private final String name;
 
 	/** Called by native code. */
-	@SuppressWarnings("UnusedDeclaration")
+	@Native
 	private NativeFunction(long functionPtr, String name, NativeModule parent, long pointerToCompiledFunction) {
 		this.functionPtr = functionPtr;
 		this.name = name;
@@ -56,6 +58,8 @@ public class NativeFunction {
 	 *     <li>{@code jobject} the java object is passed as is. </li>
 	 *     <li>{@code jstring} the string is passed as is. Throws an {@link java.lang.IllegalArgumentException}
 	 *     if the argument is not a string </li>
+	 *     <li>{@code jclass} the class is passed as is. Throws an {@link java.lang.IllegalArgumentException}
+	 *     if the argument is not a class </li>
 	 *     <li>{@code jobjectArray} the array is passed as is. Throws an {@link java.lang.IllegalArgumentException}
 	 *     if the argument is not a valid java object array. Note that an array of arrays (e.g. int[][]) is an object array.</li>
 	 * </ul>
@@ -65,6 +69,7 @@ public class NativeFunction {
 	 *     <li>any integer type is converted to a long</li>
 	 *     <li>{@code jobject} the java object is returned as is. </li>
 	 *     <li>{@code jstring} the string is returned as is. </li>
+	 *     <li>{@code jclass} the class is returned as is. </li>
 	 *     <li>{@code jobjectArray} the array is returned as is.</li>
 	 *     <li>all other values are converted to null.</li>
 	 * </ul>

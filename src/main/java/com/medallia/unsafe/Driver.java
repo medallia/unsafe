@@ -127,7 +127,6 @@ public class Driver {
 					if ("#include <...> search starts here:".equals(line)) {
 						capturing = true;
 					} else if ("End of search list.".equals(line)) {
-						capturing = false;
 						break;
 					} else if (capturing) {
 						String pathName = line.trim();

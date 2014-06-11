@@ -5,7 +5,7 @@ import com.medallia.unsafe.NativeFunction;
 import com.medallia.unsafe.NativeModule;
 
 /**
- * Shows how arguments are passed to and from Java
+ * Shows how arguments are passed to and from Java from the dynamic calling interface.
  */
 public class ArgumentPassing {
 	public static void main(String[] args) {
@@ -40,5 +40,4 @@ public class ArgumentPassing {
 		);
 		System.out.println("result = " + result);
 	}
-
 }

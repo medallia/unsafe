@@ -1,17 +1,32 @@
-package com.medallia.shim.example;
+package com.medallia.thunk.example;
 
-import com.medallia.shim.Adapter;
+import com.medallia.thunk.ThunkBuilder;
+import com.medallia.thunk.NativeBindings;
 import com.medallia.unsafe.Driver;
+import com.medallia.unsafe.Native;
 import com.medallia.unsafe.NativeFunction;
 import com.medallia.unsafe.NativeModule;
 
+/**
+ * Example of an automatically generated thunk.
+ */
+public class AutoFastCall {
+	/**
+	 * Create native bindings for this class.
+	 * Should be kept around for the lifetime of this class.
+	 */
+	private static final NativeBindings BINDINGS = ThunkBuilder.initializeNative(AutoFastCall.class);
 
-public class AutoFastCall extends Adapter {
-	/** Keeps a reference to native bindings for this class. */
-	private static final NativeBindings BINDINGS = initializeNative(AutoFastCall.class);
+	/**
+	 * Holds pointers to functions needed by the native code.
+	 * Must be initialized by a call to {@link com.medallia.thunk.NativeBindings#getFunctionPointers(com.medallia.unsafe.NativeModule)}
+	 * passing a suitable
+	 */
+	@Native
+	private final long[] functions;
 
 	public AutoFastCall(NativeModule implementation) {
-		super(BINDINGS, implementation);
+		functions = BINDINGS.getFunctionPointers(implementation);
 	}
 
 	/** The native method signature */

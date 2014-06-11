@@ -12,6 +12,9 @@ import java.io.IOException;
  * This is about 3 orders of magnitude faster than using plain {@link com.medallia.unsafe.NativeFunction#invoke(Object...)}
  *
  * The generated code must conform to a fixed interface.
+ *
+ * A class similar to this can be automatically populated by {@link com.medallia.thunk.ThunkBuilder}.
+ * For an example see {@link com.medallia.thunk.example.AutoFastCall}.
  */
 public class FastCall {
 	/** The pointer to the target function. This is called by native code. */

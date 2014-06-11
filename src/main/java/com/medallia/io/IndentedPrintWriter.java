@@ -1,4 +1,4 @@
-package com.medallia.shim;
+package com.medallia.io;
 
 import java.io.IOException;
 import java.io.PrintWriter;
