@@ -53,7 +53,7 @@ public class NativeFunction {
 	 * Invokes this function.
 	 * This method supports the following conversions from Java objects:
 	 * <ul>
-	 *     <li>any integer type is assigned the result of calling {@code longValue()} on the passed object</li>
+	 *     <li>any valid integer type is assigned the result of calling {@code longValue()} on the passed object</li>
 	 *     <li>{@code JNIEnv*} is assigned the current JNI environment pointer. The passed Java argument is ignored. </li>
 	 *     <li>{@code jobject} the java object is passed as is. </li>
 	 *     <li>{@code jstring} the string is passed as is. Throws an {@link java.lang.IllegalArgumentException}
@@ -62,7 +62,12 @@ public class NativeFunction {
 	 *     if the argument is not a class </li>
 	 *     <li>{@code jobjectArray} the array is passed as is. Throws an {@link java.lang.IllegalArgumentException}
 	 *     if the argument is not a valid java object array. Note that an array of arrays (e.g. int[][]) is an object array.</li>
+	 *     <li>{@code j&lt;primitive type&gt;Array} the array is passed as is. Throws an {@link java.lang.IllegalArgumentException}
+	 *     if the argument is not a an array of the expected primitive type.</li>
+	 *     <li>For any other type it hrows an {@link java.lang.IllegalArgumentException}</li>
 	 * </ul>
+	 *
+
 	 *
 	 * For return values the following conversions from native types apply:
 	 * <ul>
@@ -71,7 +76,8 @@ public class NativeFunction {
 	 *     <li>{@code jstring} the string is returned as is. </li>
 	 *     <li>{@code jclass} the class is returned as is. </li>
 	 *     <li>{@code jobjectArray} the array is returned as is.</li>
-	 *     <li>all other values are converted to null.</li>
+	 *     <li>{@code j&lt;primitive type&gt;Array} the array is returned as is.</li>
+	 *     <li>all other types are converted to null.</li>
 	 * </ul>
 	 * @param args arguments to the function.
 	 * @throws java.lang.IllegalArgumentException if the provided number of arguments does not match the function

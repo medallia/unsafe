@@ -1,6 +1,20 @@
 #include "Driver.h"
 #include "NativeModule.h"
 
+// Mapping from JNI types as seen by LLVM to Java types
+static const std::map<std::string,std::string> LLVM_TO_JAVA_TYPES {
+    { "class._jstring"      , "java.lang.String"},
+    { "class._jclass"       , "java.lang.Class" },
+    { "class._jbooleanArray", "[Z"              },
+    { "class._jbyteArray"   , "[B"              },
+    { "class._jcharArray"   , "[C"              },
+    { "class._jshortArray"  , "[S"              },
+    { "class._jintArray"    , "[I"              },
+    { "class._jlongArray"   , "[J"              },
+    { "class._jfloatArray"  , "[F"              },
+    { "class._jdoubleArray" , "[D"              }
+};
+
 // Commonly used jmethodIDs and jfieldIDs
 static struct {
     // unsafe.NativeFunction
@@ -19,7 +33,6 @@ static struct {
     // java.lang.Class
     struct {
         jmethodID getNameMtdId;
-        jmethodID isArrayMtdId;
     } javaClass;
 
     // java.lang.Long
@@ -27,6 +40,10 @@ static struct {
         jmethodID constructor;
     } javaLong;
 } IDS;
+
+struct IllegalArgumentException {
+    std::string message;
+};
 
 // Convert a java string to std::string
 const std::string toString(JNIEnv* env, jstring javaString) {
@@ -45,13 +62,6 @@ const std::string getClassName(JNIEnv* env, jclass aClass) {
 jint throwIllegalArgumentException(JNIEnv* env, std::string message ) {
     const jclass exClass = env->FindClass("java/lang/IllegalArgumentException");
     return env->ThrowNew(exClass, message.c_str());
-}
-
-jint throwIllegalArgumentException(JNIEnv* env, const llvm::Argument& argDef) {
-    std::string msg;
-    llvm::raw_string_ostream os(msg);
-    os << "Unsupported argument type '" << *argDef.getType() << "' for argument #" << argDef.getArgNo();
-    return throwIllegalArgumentException(env, os.str());
 }
 
 #ifdef __cplusplus
@@ -81,7 +91,6 @@ JNIEXPORT void JNICALL Java_com_medallia_unsafe_Driver_initializeNativeCode
 
     const jclass javaClass_jClass = env->FindClass("java/lang/Class");
     IDS.javaClass.getNameMtdId = env->GetMethodID(javaClass_jClass, "getName", "()Ljava/lang/String;");
-    IDS.javaClass.isArrayMtdId = env->GetMethodID(javaClass_jClass, "isArray", "()Z");
     
     const jclass javaLong_jClass = env->FindClass("java/lang/Long");
     IDS.javaLong.constructor = env->GetMethodID(javaLong_jClass, "<init>", "(J)V");
@@ -139,85 +148,81 @@ JNIEXPORT jobject JNICALL Java_com_medallia_unsafe_Driver_invoke
         return nullptr;
     }
 
-    for (const llvm::Argument& argDef : argTypes) {
-        llvm::GenericValue val;
-        bool set = false;
-        jobject javaVal = env->GetObjectArrayElement(arguments, argDef.getArgNo());
-        jclass javaValClass = javaVal ? env->GetObjectClass(javaVal) : nullptr;
-        if (argDef.getType()->isIntegerTy()) {
-            jmethodID longValueMtdId = javaValClass ? env->GetMethodID(javaValClass, "longValue", "()J") : nullptr;
-            if (!longValueMtdId) {
-                throwIllegalArgumentException(env, std::string("Could not find longValue() method for arg ") + std::to_string(argDef.getArgNo()));
-                return nullptr;
-            }
-            jlong longVal = env->CallLongMethod(javaVal, longValueMtdId);
-            val.IntVal = llvm::APInt(argDef.getType()->getPrimitiveSizeInBits(), longVal);
-            set = true;
-        } else if (argDef.getType()->isPointerTy()) {
-            const llvm::Type* elementType = argDef.getType()->getPointerElementType();
-            if (elementType->isStructTy()) {
-                const llvm::StructType* structType = static_cast<const llvm::StructType*>(elementType);
-                if (!structType->isLiteral()) {
-                    if (structType->getName() == "class._jobject") {
-                        // Just pass the JNI Java object
-                        val.PointerVal = javaVal;
-                        set = true;
-                    } else if (structType->getName() == "struct.JNIEnv_") {
-                        // Just pass the environment pointer, we don't care about the actual argument
-                        val.PointerVal = env;
-                        set = true;
-                    } else if (structType->getName() == "class._jstring") {
-                        // Check that the arg is a valid jstring
-                        if (javaVal) {
-                            std::string name = getClassName(env, javaValClass);
-                            if(name != std::string("java.lang.String")) {
-                                throwIllegalArgumentException(env,
-                                                              std::string("expected a string for arg #") + std::to_string(argDef.getArgNo())
-                                                              + std::string(" but got a ") + name);
-                                return nullptr;
+    try {
+        for (const llvm::Argument& argDef : argTypes) {
+            llvm::GenericValue val;
+            bool set = false;
+            jobject javaVal = env->GetObjectArrayElement(arguments, argDef.getArgNo());
+            jclass javaValClass = javaVal ? env->GetObjectClass(javaVal) : nullptr;
+            if (argDef.getType()->isIntegerTy()) {
+                jmethodID longValueMtdId = javaValClass ? env->GetMethodID(javaValClass, "longValue", "()J") : nullptr;
+                if (!longValueMtdId) {
+                    throw IllegalArgumentException { std::string("Could not find longValue() method for arg ") + std::to_string(argDef.getArgNo()) };
+                }
+                jlong longVal = env->CallLongMethod(javaVal, longValueMtdId);
+                val.IntVal = llvm::APInt(argDef.getType()->getPrimitiveSizeInBits(), longVal);
+                set = true;
+            } else if (argDef.getType()->isPointerTy()) {
+                const llvm::Type* elementType = argDef.getType()->getPointerElementType();
+                if (elementType->isStructTy()) {
+                    const llvm::StructType* structType = static_cast<const llvm::StructType*>(elementType);
+                    if (!structType->isLiteral()) {
+                        if (structType->getName() == "class._jobject") {
+                            // Just pass the JNI Java object
+                            val.PointerVal = javaVal;
+                            set = true;
+                        } else if (structType->getName() == "struct.JNIEnv_") {
+                            // Just pass the environment pointer, we don't care about the actual argument
+                            val.PointerVal = env;
+                            set = true;
+                        } else if (LLVM_TO_JAVA_TYPES.count(structType->getName())) {
+                            // Check that the arg is of the expected type
+                            if (javaVal) {
+                                const std::string expectedJavaType = LLVM_TO_JAVA_TYPES.at(structType->getName());
+                                std::string name = getClassName(env, javaValClass);
+                                if(name != expectedJavaType) {
+                                    throw IllegalArgumentException {
+                                        std::string("expected a ") + expectedJavaType + std::string(" for arg #") + std::to_string(argDef.getArgNo())
+                                        + std::string(" but got a ") + name
+                                    };
+                                }
                             }
-                        }
-                        // Just pass the JNI Java object
-                        val.PointerVal = javaVal;
-                        set = true;
-                    } else if (structType->getName() == "class._jclass") {
-                        // Check that the arg is a valid jstring
-                        if (javaVal) {
-                            std::string name = getClassName(env, javaValClass);
-                            if(name != std::string("java.lang.Class")) {
-                                throwIllegalArgumentException(env,
-                                                              std::string("expected a class for arg #") + std::to_string(argDef.getArgNo())
-                                                              + std::string(" but got a ") + name);
-                                return nullptr;
+                            // Just pass the JNI Java object
+                            val.PointerVal = javaVal;
+                            set = true;
+                        } else if (structType->getName() == "class._jobjectArray") {
+                            // Check that the arg is in fact an object array of any type
+                            // Java arrays are covariant, so this complicates matters a bit
+                            if (javaVal) {
+                                std::string name = getClassName(env, javaValClass);
+                                // Complain if the type name is not an object array "[L"
+                                if(name.compare(0, 2, "[L") != 0 && name.compare(0, 2, "[[") != 0) {
+                                    throw IllegalArgumentException {
+                                        std::string("expected an object array for arg #") + std::to_string(argDef.getArgNo())
+                                        + std::string(" but got a ") + getClassName(env, javaValClass)
+                                    };
+                                }
                             }
+                            // Just pass the JNI Java object
+                            val.PointerVal = javaVal;
+                            set = true;
                         }
-                        // Just pass the JNI Java object
-                        val.PointerVal = javaVal;
-                        set = true;
-                    } else if (structType->getName() == "class._jobjectArray") {
-                        // Check that the arg is in fact an object array of any type
-                        if (javaVal) {
-                            if(!env->CallBooleanMethod(javaValClass, IDS.javaClass.isArrayMtdId)) {
-                                throwIllegalArgumentException(env,
-                                                              std::string("expected an object array for arg #") + std::to_string(argDef.getArgNo())
-                                                              + std::string(" but got a ") + getClassName(env, javaValClass));
-                                return nullptr;
-                            }
-                        }
-                        // Just pass the JNI Java object
-                        val.PointerVal = javaVal;
-                        set = true;
                     }
                 }
             }
+            
+            if (!set) {
+                std::string msg;
+                llvm::raw_string_ostream os(msg);
+                os << "Unsupported argument type '" << *argDef.getType() << "' for argument #" << argDef.getArgNo();
+                throw IllegalArgumentException { msg };
+            }
+            
+            nativeArgs[argDef.getArgNo()] = val;
         }
-        
-        if (!set) {
-            throwIllegalArgumentException(env, argDef);
-            return nullptr;
-        }
-        
-        nativeArgs[argDef.getArgNo()] = val;
+    } catch (IllegalArgumentException ex) {
+        throwIllegalArgumentException(env, ex.message);
+        return nullptr;
     }
     
     llvm::GenericValue result = nativeModule->runFunction(func, nativeArgs);
@@ -228,10 +233,7 @@ JNIEXPORT jobject JNICALL Java_com_medallia_unsafe_Driver_invoke
         if (elementType->isStructTy()) {
             const llvm::StructType* structType = static_cast<const llvm::StructType*>(elementType);
             if (!structType->isLiteral()) {
-                if (   structType->getName() == "class._jobject"
-                    || structType->getName() == "class._jstring"
-                    || structType->getName() == "class._jclass"
-                    || structType->getName() == "class._jobjectArray") {
+                if (LLVM_TO_JAVA_TYPES.count(structType->getName())) {
                     return (jobject) result.PointerVal;
                 }
             }
@@ -278,8 +280,7 @@ JNIEXPORT jobjectArray JNICALL Java_com_medallia_unsafe_Driver_getFunctions
 JNIEXPORT void JNICALL Java_com_medallia_unsafe_Driver_delete
 (JNIEnv * env, jclass clazz, jobject aNativeModule) {
     // Delete the native module
-    const NativeModule* nativeModule = (NativeModule*) env->GetLongField(aNativeModule, IDS.nativeModule.modulePtrFldId);
-    delete nativeModule;
+    delete (NativeModule*) env->GetLongField(aNativeModule, IDS.nativeModule.modulePtrFldId);
 }
 
 #ifdef __cplusplus
