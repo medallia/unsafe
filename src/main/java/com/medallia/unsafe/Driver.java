@@ -109,7 +109,7 @@ public class Driver {
 		return javaHome.endsWith("jre") ? javaHome.getParent() : javaHome;
 	}
 
-	/** @return a list with parameters for all default plafomr includes. */
+	/** @return a list with parameters for all default platform includes. */
 	private static List<String> loadDefaultIncludeSearchPaths() throws IOException, InterruptedException {
 		final List<String> result = new ArrayList<>();
 		try (final TempFile source = new TempFile("dummy", ".cpp");
