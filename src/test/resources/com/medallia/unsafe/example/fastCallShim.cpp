@@ -1,6 +1,5 @@
 #include <jni.h>
 
-
 static jfieldID functionPtrField;
 
 // Function that handles the native call
