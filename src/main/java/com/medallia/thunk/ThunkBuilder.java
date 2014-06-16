@@ -10,7 +10,10 @@ import java.lang.reflect.Field;
 import java.lang.reflect.Method;
 import java.lang.reflect.Modifier;
 import java.util.ArrayList;
+import java.util.Collections;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 /**
  * Dynamically implements all native methods of a class as thunks which delegate
@@ -153,43 +156,6 @@ public abstract class ThunkBuilder {
 		pw.printf("\", (void*)%s },\n", nativeMethod.getName());
 	}
 
-	/**
-	 * Converts a {@link java.lang.Class} to it's JNI signature
-	 * @param type a java class
-	 * @return the JNI signature for the specified class
-	 */
-	private static String toJavaSignature(Class<?> type) {
-		final String signature;
-		if (type.isArray()) {
-			signature = "[" + toJavaSignature(type.getComponentType());
-		} else if (type.isPrimitive()) {
-			if (type == Void.TYPE) {
-				signature = "V";
-			} else if (type == Boolean.TYPE) {
-				signature = "Z";
-			} else if (type == Byte.TYPE) {
-				signature = "B";
-			} else if (type == Character.TYPE) {
-				signature = "C";
-			} else if (type == Short.TYPE) {
-				signature = "S";
-			} else if (type == Integer.TYPE) {
-				signature = "I";
-			} else if (type == Long.TYPE) {
-				signature = "J";
-			} else if (type == Float.TYPE) {
-				signature = "F";
-			} else if (type == Double.TYPE) {
-				signature = "D";
-			} else {
-				throw new AssertionError();
-			}
-		} else {
-			// TODO: Check if inner classes (anonymous or otherwise) are properly handled
-			signature = "L" + type.getName().replace('.','/')  + ";";
-		}
-		return signature;	}
-
 	/** Generate a helper function to access a specific function pointer in the containing object. */
 	private static void generateGetFunctionHelper(IndentedPrintWriter pw) {
 		pw.println("inline jlong _getFunction(JNIEnv* env, jobject self, jint index) {");
@@ -240,6 +206,24 @@ public abstract class ThunkBuilder {
 	}
 
 	/**
+	 * Converts a {@link java.lang.Class} to it's JNI signature
+	 * @param type a java class
+	 * @return the JNI signature for the specified class
+	 */
+	private static String toJavaSignature(Class<?> type) {
+		final String signature;
+		if (type.isArray()) {
+			signature = "[" + toJavaSignature(type.getComponentType());
+		} else if (JAVA_TO_SIGNATURE.containsKey(type)) {
+			return JAVA_TO_SIGNATURE.get(type);
+		} else {
+			// TODO: Check if inner classes (anonymous or otherwise) are properly handled
+			signature = "L" + type.getName().replace('.','/')  + ";";
+		}
+		return signature;
+	}
+
+	/**
 	 * Convert a {@link java.lang.Class} to a string representing it's JNI type.
 	 * @param type a class
 	 * @return the JNI type for the class.
@@ -252,35 +236,41 @@ public abstract class ThunkBuilder {
 			} else {
 				jniType = "jobjectArray";
 			}
-		} else if (type.isPrimitive()) {
-			if (type == Void.TYPE) {
-				jniType = "void";
-			} else if (type == Byte.TYPE) {
-				jniType = "jbyte";
-			} else if (type == Boolean.TYPE) {
-				jniType = "jboolean";
-			} else if (type == Character.TYPE) {
-				jniType = "jchar";
-			} else if (type == Short.TYPE) {
-				jniType = "jshort";
-			} else if (type == Integer.TYPE) {
-				jniType = "jint";
-			} else if (type == Long.TYPE) {
-				jniType = "jlong";
-			} else if (type == Float.TYPE) {
-				jniType = "jfloat";
-			} else if (type == Double.TYPE) {
-				jniType = "jdouble";
-			} else {
-				throw new AssertionError();
-			}
-		} else if (Class.class == type) {
-			jniType = "jclass";
-		} else if (String.class == type) {
-			jniType = "jstring";
+		} else if (JAVA_TO_JNI.containsKey(type)) {
+			return JAVA_TO_JNI.get(type);
 		} else {
 			jniType = "jobject";
 		}
 		return jniType;
+	}
+
+	private static final Map<Class, String> JAVA_TO_JNI;
+	private static final Map<Class, String> JAVA_TO_SIGNATURE;
+	static {
+		final Map<Class, String> javaToJNI = new HashMap<>();
+		javaToJNI.put(Void.TYPE, "void");
+		javaToJNI.put(Byte.TYPE, "jbyte");
+		javaToJNI.put(Boolean.TYPE, "jboolean");
+		javaToJNI.put(Character.TYPE, "jchar");
+		javaToJNI.put(Short.TYPE, "jshort");
+		javaToJNI.put(Integer.TYPE, "jint");
+		javaToJNI.put(Long.TYPE, "jlong");
+		javaToJNI.put(Float.TYPE, "jfloat");
+		javaToJNI.put(Double.TYPE, "jdouble");
+		javaToJNI.put(Class.class, "jclass");
+		javaToJNI.put(String.class, "jstring");
+		JAVA_TO_JNI = Collections.unmodifiableMap(javaToJNI);
+
+		final Map<Class, String> javaToSignature = new HashMap<>();
+		javaToSignature.put(Void.TYPE, "V");
+		javaToSignature.put(Boolean.TYPE, "Z");
+		javaToSignature.put(Byte.TYPE, "B");
+		javaToSignature.put(Character.TYPE, "C");
+		javaToSignature.put(Short.TYPE, "S");
+		javaToSignature.put(Integer.TYPE, "I");
+		javaToSignature.put(Long.TYPE, "J");
+		javaToSignature.put(Float.TYPE, "F");
+		javaToSignature.put(Double.TYPE, "D");
+		JAVA_TO_SIGNATURE = Collections.unmodifiableMap(javaToSignature);
 	}
 }
