@@ -41,6 +41,7 @@ static struct {
     } javaLong;
 } IDS;
 
+// Will be caught and changed to a java.lang.IllegalArgumentException
 struct IllegalArgumentException {
     std::string message;
 };
@@ -58,18 +59,12 @@ const std::string getClassName(JNIEnv* env, jclass aClass) {
     return toString(env,(jstring) env->CallObjectMethod(aClass, IDS.javaClass.getNameMtdId));
 }
 
-// Throws an IllegalArgumentException
-jint throwIllegalArgumentException(JNIEnv* env, std::string message ) {
-    const jclass exClass = env->FindClass("java/lang/IllegalArgumentException");
-    return env->ThrowNew(exClass, message.c_str());
-}
-
 #ifdef __cplusplus
 extern "C" {
 #endif
 
 /*
- * Class:     unsafe_Driver
+ * Class:     com.medallia.unsafe.Driver
  * Method:    initializeNativeCode
  * Signature: ()V
  */
@@ -97,7 +92,7 @@ JNIEXPORT void JNICALL Java_com_medallia_unsafe_Driver_initializeNativeCode
 }
     
 /*
- * Class:     unsafe_Driver
+ * Class:     com.medallia.unsafe.Driver
  * Method:    compileInMemory0
  * Signature: (Ljava/lang/String;Ljava/lang/String;[Ljava/lang/String;)Lcom/medallia/unsafe/NativeModule;
  */
@@ -122,33 +117,32 @@ JNIEXPORT jobject JNICALL Java_com_medallia_unsafe_Driver_compileInMemory0
 }
 
 /*
- * Class:     unsafe_Driver
+ * Class:     com.medallia.unsafe.Driver
  * Method:    invoke
  * Signature: (Lcom/medallia/unsafe/NativeFunction;[Ljava/lang/Object;)Ljava/lang/Object;
  */
 JNIEXPORT jobject JNICALL Java_com_medallia_unsafe_Driver_invoke
 (JNIEnv * env, jclass clazz, jobject aNativeFunction, jobjectArray arguments) {
-    // Find the llvm::Function*
-    llvm::Function* func = (llvm::Function*) env->GetLongField(aNativeFunction, IDS.nativeFunction.functionPtrFldId);
-
-    // and the module object
-    const jobject aNativeModule = env->GetObjectField(aNativeFunction, IDS.nativeFunction.parentFldId);
-
-    if (!aNativeModule) return nullptr;
-    // extract the NativeModule instance
-    NativeModule* nativeModule = (NativeModule*) env->GetLongField(aNativeModule, IDS.nativeModule.modulePtrFldId);
-
-    // transform args and return values
-    const jsize nArgs = env->GetArrayLength(arguments);
-    std::vector<llvm::GenericValue> nativeArgs(nArgs);
-    
-    const llvm::Function::ArgumentListType& argTypes = func->getArgumentList();
-    if (argTypes.size() != nArgs) {
-        throwIllegalArgumentException(env, std::string("Expected ") + std::to_string(argTypes.size()) + " arguments");
-        return nullptr;
-    }
-
     try {
+        // Find the llvm::Function*
+        llvm::Function* func = (llvm::Function*) env->GetLongField(aNativeFunction, IDS.nativeFunction.functionPtrFldId);
+
+        // and the module object
+        const jobject aNativeModule = env->GetObjectField(aNativeFunction, IDS.nativeFunction.parentFldId);
+
+        if (!aNativeModule) return nullptr;
+        // extract the NativeModule instance
+        NativeModule* nativeModule = (NativeModule*) env->GetLongField(aNativeModule, IDS.nativeModule.modulePtrFldId);
+
+        // transform args and return values
+        const jsize nArgs = env->GetArrayLength(arguments);
+        std::vector<llvm::GenericValue> nativeArgs(nArgs);
+        
+        const llvm::Function::ArgumentListType& argTypes = func->getArgumentList();
+        if (argTypes.size() != nArgs) {
+            throw IllegalArgumentException { std::string("Expected ") + std::to_string(argTypes.size()) + " arguments" };
+        }
+
         for (const llvm::Argument& argDef : argTypes) {
             llvm::GenericValue val;
             bool set = false;
@@ -195,7 +189,7 @@ JNIEXPORT jobject JNICALL Java_com_medallia_unsafe_Driver_invoke
                             // Java arrays are covariant, so this complicates matters a bit
                             if (javaVal) {
                                 std::string name = getClassName(env, javaValClass);
-                                // Complain if the type name is not an object array "[L"
+                                // Complain if the type name is not an object array "[L" or an array of arrays "[["
                                 if(name.compare(0, 2, "[L") != 0 && name.compare(0, 2, "[[") != 0) {
                                     throw IllegalArgumentException {
                                         std::string("expected an object array for arg #") + std::to_string(argDef.getArgNo())
@@ -220,30 +214,34 @@ JNIEXPORT jobject JNICALL Java_com_medallia_unsafe_Driver_invoke
             
             nativeArgs[argDef.getArgNo()] = val;
         }
-    } catch (IllegalArgumentException ex) {
-        throwIllegalArgumentException(env, ex.message);
-        return nullptr;
-    }
     
-    llvm::GenericValue result = nativeModule->runFunction(func, nativeArgs);
-    if(func->getReturnType()->isIntegerTy() && result.IntVal.getNumWords() == 1) {
-        return env->NewObject(env->FindClass("java/lang/Long"), IDS.javaLong.constructor, (jlong)*result.IntVal.getRawData());
-    } else if (func->getReturnType()->isPointerTy()) {
-        const llvm::Type* elementType = func->getReturnType()->getPointerElementType();
-        if (elementType->isStructTy()) {
-            const llvm::StructType* structType = static_cast<const llvm::StructType*>(elementType);
-            if (!structType->isLiteral()) {
-                if (LLVM_TO_JAVA_TYPES.count(structType->getName())) {
-                    return (jobject) result.PointerVal;
+        llvm::GenericValue result = nativeModule->runFunction(func, nativeArgs);
+        
+        // Convert the return value to a suitable Java value
+        if(func->getReturnType()->isIntegerTy() && result.IntVal.getNumWords() == 1) {
+            return env->NewObject(env->FindClass("java/lang/Long"), IDS.javaLong.constructor, (jlong)*result.IntVal.getRawData());
+        } else if (func->getReturnType()->isPointerTy()) {
+            const llvm::Type* elementType = func->getReturnType()->getPointerElementType();
+            if (elementType->isStructTy()) {
+                const llvm::StructType* structType = static_cast<const llvm::StructType*>(elementType);
+                if (!structType->isLiteral()) {
+                    if (LLVM_TO_JAVA_TYPES.count(structType->getName())) {
+                        return (jobject) result.PointerVal;
+                    }
                 }
             }
         }
+        
+        return nullptr;
+    } catch (IllegalArgumentException ex) {
+        const jclass exClass = env->FindClass("java/lang/IllegalArgumentException");
+        env->ThrowNew(exClass, ex.message.c_str());
+        return nullptr;
     }
-    return nullptr;
 }
 
 /*
- * Class:     unsafe_Driver
+ * Class:     com.medallia.unsafe.Driver
  * Method:    getFunctions
  * Signature: (Lcom/medallia/unsafe/NativeModule;)[Lcom/medallia/unsafe/NativeFunction;
  */
