@@ -206,7 +206,7 @@ extern "C" {
                     std::string msg;
                     llvm::raw_string_ostream os(msg);
                     os << "Unsupported argument type '" << *argDef.getType() << "' for argument #" << argDef.getArgNo();
-                    throw IllegalArgumentException { msg };
+                    throw IllegalArgumentException { os.str() };
                 }
                 
                 nativeArgs[argDef.getArgNo()] = val;
@@ -222,7 +222,7 @@ extern "C" {
                 if (elementType->isStructTy()) {
                     const llvm::StructType* structType = static_cast<const llvm::StructType*>(elementType);
                     if (!structType->isLiteral()) {
-                        if (LLVM_TO_JAVA_TYPES.count(structType->getName())) {
+                        if (LLVM_TO_JAVA_TYPES.count(structType->getName()) || structType->getName() == "class._jobjectArray") {
                             return (jobject) result.PointerVal;
                         }
                     }
