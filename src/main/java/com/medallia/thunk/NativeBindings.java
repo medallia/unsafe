@@ -34,10 +34,10 @@ public class NativeBindings {
 
 		for (int i = 0; i < nativeMethods.size(); i++) {
 			final Method nativeMethod = nativeMethods.get(i);
-			final NativeFunction compiledFunction = implementation.getFunctionByName(nativeMethod.getName());
-			// TODO: we should type-check.
+			final String mangledName = ThunkBuilder.getMangledName(nativeMethod);
+			final NativeFunction compiledFunction = implementation.getFunctionByName(mangledName);
 			if (compiledFunction == null) {
-				throw new IllegalArgumentException("Missing implementation for: " + nativeMethod);
+				throw new IllegalArgumentException("Missing implementation for: " + nativeMethod + " (" + mangledName + ").");
 			}
 			// We should get the pointer to the function here somehow.
 			functions[i] = compiledFunction.getPointerToCompiledFunction();

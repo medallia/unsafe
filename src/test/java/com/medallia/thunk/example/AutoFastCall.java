@@ -32,13 +32,13 @@ public class AutoFastCall {
 	/** The native method signature */
 	public native int square(int anInt);
 
-	public static void main(String[] args) {
+	public static void main(String[] args) throws NoSuchMethodException {
 		final NativeModule implementation = Driver.compileInMemory("#include<jni.h>\n" +
-				"extern \"C\" jint square(JNIEnv* env, jobject self, jint x) { return x*x; }");
+				"jint square(JNIEnv* env, jobject self, jint x) { return x*x; }");
 		final AutoFastCall autoFastCall = new AutoFastCall(implementation);
 		long sumOfSquares = 0;
 		System.out.println("--- testing slow call ---");
-		final NativeFunction slowCall = implementation.getFunctionByName("square");
+		final NativeFunction slowCall = implementation.getFunctionByName(ThunkBuilder.getMangledName(AutoFastCall.class.getMethod("square", int.class)));
 		for (int i = 0; i < 10; i++) {
 			long start = System.nanoTime();
 			sumOfSquares += (Long) slowCall.invoke(null, null, i);

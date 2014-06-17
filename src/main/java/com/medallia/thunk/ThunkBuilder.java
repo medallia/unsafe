@@ -244,8 +244,64 @@ public abstract class ThunkBuilder {
 		return jniType;
 	}
 
+	/**
+	 *
+	 * @param nativeMethod an instance native method
+	 * @return the mangled C++ name for the JNI implementation of a native method, according to the Itanium C++ ABI
+	 */
+	public static String getMangledName(Method nativeMethod) {
+		if (!Modifier.isNative(nativeMethod.getModifiers()) || Modifier.isStatic(nativeMethod.getModifiers())) {
+			throw new IllegalArgumentException("the method should be a native instance method");
+		}
+
+		class Mangler {
+			final StringBuilder sb = new StringBuilder();
+			final Map<String, Integer> substitutions = new HashMap<>();
+			int pos;
+			void function(String func) { sb.append("_Z").append(name(func)); }
+
+			void addPart(String s) {
+				final Integer index = substitutions.get(s);
+				if (index != null) {
+					// Substitutions are tricky, we fake it since JNI methods have simple signatures
+					sb.append("S").append(Integer.toString(index*2, 36).toUpperCase()).append("_");
+				} else {
+					substitutions.put(s, pos++);
+					sb.append(s);
+				}
+			}
+			void pStruct(String struct) { addPart("P" + name(struct)); }
+			String name(String name) { return name.length() + name; }
+		}
+
+		final Mangler m = new Mangler();
+		m.function(nativeMethod.getName());
+		m.pStruct("JNIEnv_");
+		m.pStruct("_jobject");
+		for (Class<?> argType : nativeMethod.getParameterTypes()) {
+			if (argType.isPrimitive()) {
+				m.sb.append(JAVA_TO_ABI.get(argType));
+			} else if (argType.isArray()){
+				if (argType.getComponentType().isPrimitive()) {
+					m.pStruct("_" + JAVA_TO_JNI.get(argType.getComponentType()) + "Array");
+				} else {
+					m.pStruct("_jobjectArray");
+				}
+			} else {
+				final String jniType = JAVA_TO_JNI.get(argType);
+				if (jniType == null) {
+					m.pStruct("_jobject");
+				} else {
+					m.pStruct("_" + jniType);
+				}
+			}
+		}
+		return m.sb.toString();
+	}
+
 	private static final Map<Class, String> JAVA_TO_JNI;
 	private static final Map<Class, String> JAVA_TO_SIGNATURE;
+	private static final Map<Class, String> JAVA_TO_ABI;
 	static {
 		final Map<Class, String> javaToJNI = new HashMap<>();
 		javaToJNI.put(Void.TYPE, "void");
@@ -272,5 +328,18 @@ public abstract class ThunkBuilder {
 		javaToSignature.put(Float.TYPE, "F");
 		javaToSignature.put(Double.TYPE, "D");
 		JAVA_TO_SIGNATURE = Collections.unmodifiableMap(javaToSignature);
+
+		// This assumes that we're running in a modern, 64bit JVM
+		final Map<Class, String> javaToABI = new HashMap<>();
+		javaToABI.put(Void.TYPE, "v");
+		javaToABI.put(Byte.TYPE, "a");
+		javaToABI.put(Boolean.TYPE, "h");
+		javaToABI.put(Character.TYPE, "t");
+		javaToABI.put(Short.TYPE, "s");
+		javaToABI.put(Integer.TYPE, "i");
+		javaToABI.put(Long.TYPE, "l");
+		javaToABI.put(Float.TYPE, "f");
+		javaToABI.put(Double.TYPE, "d");
+		JAVA_TO_ABI = Collections.unmodifiableMap(javaToABI);
 	}
 }
