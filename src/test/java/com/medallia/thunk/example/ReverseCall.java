@@ -3,6 +3,7 @@ package com.medallia.thunk.example;
 import com.medallia.thunk.NativeBindings;
 import com.medallia.thunk.ThunkBuilder;
 import com.medallia.unsafe.Driver;
+import com.medallia.unsafe.Native;
 import com.medallia.unsafe.NativeModule;
 import com.medallia.unsafe.example.Util;
 
@@ -13,6 +14,8 @@ import java.io.IOException;
  */
 public class ReverseCall {
 	private static final NativeBindings BINDINGS = ThunkBuilder.initializeNative(ReverseCall.class);
+
+	@Native
 	private final long[] functions;
 
 	public ReverseCall(NativeModule implementation) {
