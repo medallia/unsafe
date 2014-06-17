@@ -2,7 +2,6 @@
 #include <chrono>
 
 
-extern "C"
 long benchmark(JNIEnv* env, jobject self, jint n) {
     const jclass clazz = env->GetObjectClass(self);
     jmethodID method = env->GetMethodID(clazz, "benchmarked", "(J)J");
