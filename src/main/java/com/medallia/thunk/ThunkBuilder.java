@@ -245,7 +245,8 @@ public abstract class ThunkBuilder {
 	}
 
 	/**
-	 *
+	 * Builds a mangled method name for a C++ implementation of a JNI method.
+	 * It follows the <a href="http://mentorembedded.github.io/cxx-abi/abi.html#mangling">Itanium C++ ABI</a>.
 	 * @param nativeMethod an instance native method
 	 * @return the mangled C++ name for the JNI implementation of a native method, according to the Itanium C++ ABI
 	 */
@@ -254,12 +255,12 @@ public abstract class ThunkBuilder {
 			throw new IllegalArgumentException("the method should be a native instance method");
 		}
 
+		/** Helper to process substitutions during mangling */
 		class Mangler {
 			final StringBuilder sb = new StringBuilder();
 			final Map<String, Integer> substitutions = new HashMap<>();
 			int pos;
 			void function(String func) { sb.append("_Z").append(name(func)); }
-
 			void addPart(String s) {
 				final Integer index = substitutions.get(s);
 				if (index != null) {
@@ -280,6 +281,7 @@ public abstract class ThunkBuilder {
 		m.pStruct("_jobject");
 		for (Class<?> argType : nativeMethod.getParameterTypes()) {
 			if (argType.isPrimitive()) {
+				// These are not subject to substitutions. Just append them.
 				m.sb.append(JAVA_TO_ABI.get(argType));
 			} else if (argType.isArray()){
 				if (argType.getComponentType().isPrimitive()) {
