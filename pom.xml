@@ -24,6 +24,14 @@
 					<target>1.7</target>
 				</configuration>
 			</plugin>
+			<plugin>
+			    <groupId>org.apache.maven.plugins</groupId>
+			    <artifactId>maven-surefire-plugin</artifactId>
+			    <version>2.10</version>
+			    <configuration>
+			        <argLine>-Djava.library.path=${project.basedir}/jni</argLine>
+			    </configuration>
+			</plugin>
 		</plugins>
 	</build>
 	<dependencies>
