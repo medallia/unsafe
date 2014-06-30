@@ -9,9 +9,9 @@ public class HelloWorld {
 	public static void main(String[] args) {
 		final NativeModule nativeModule = Driver.compileInMemory(
 				"#include<stdio.h>\n" +
-						"extern \"C\" void foo() {" +
-						"printf(\"hello world!\\n\");" +
-						"}");
+				"extern \"C\" void foo() {" +
+				"printf(\"hello world!\\n\");" +
+				"}");
 		// Check for errors compiling
 		if (nativeModule.hasErrors()) {
 			System.out.println("Errors:\n " + nativeModule.getErrors());
