@@ -7,10 +7,9 @@ a Java library to compile and run C++ code in-memory
 ```java
 final NativeModule nativeModule = Driver.compileInMemory(
 		"#include<stdio.h>\n" +
-				"extern \"C\" void foo() {" +
-				"printf(\"hello world!\\n\");" +
-				"}");
+		"extern \"C\" void foo() {" +
+		"printf(\"hello world!\\n\");" +
+		"}");
 
-final NativeFunction foo = nativeModule.getFunctionByName("foo").invoke();
-
+nativeModule.getFunctionByName("foo").invoke();
 ```
