@@ -15,7 +15,7 @@ public class NativeBindings {
 	@SuppressWarnings({"FieldCanBeLocal", "UnusedDeclaration"})
 	private final NativeModule nativeModule;
 
-	/** List of native methods in the order used shim generation. */
+	/** List of native methods in the order used by thunk generation. */
 	private final List<Method> nativeMethods;
 
 	NativeBindings(NativeModule nativeModule, List<Method> nativeMethods) {

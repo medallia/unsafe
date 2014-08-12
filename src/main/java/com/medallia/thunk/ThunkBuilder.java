@@ -1,6 +1,6 @@
 package com.medallia.thunk;
 
-import com.medallia.io.IndentedPrintWriter;
+import com.medallia.unsafe.io.IndentedPrintWriter;
 import com.medallia.unsafe.Driver;
 import com.medallia.unsafe.NativeFunction;
 import com.medallia.unsafe.NativeModule;

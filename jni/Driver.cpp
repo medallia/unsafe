@@ -16,30 +16,34 @@ static const std::map<std::string,std::string> LLVM_TO_JAVA_TYPES {
 };
 
 // Commonly used jmethodIDs and jfieldIDs
-static struct {
+namespace IDS {
     // unsafe.NativeFunction
-    struct {
-        jmethodID constructor;
-        jfieldID functionPtrFldId;
-        jfieldID parentFldId;
-    } nativeFunction;
+    namespace nativeFunction {
+        static jclass jClass;
+        static jmethodID constructor;
+        static jfieldID functionPtrFldId;
+        static jfieldID parentFldId;
+    }
 
     // unsafe.NativeModule
-    struct {
-        jmethodID constructor;
-        jfieldID modulePtrFldId;
-    } nativeModule;
+    namespace nativeModule {
+        static jclass jClass;
+        static jmethodID constructor;
+        static jfieldID modulePtrFldId;
+    }
 
     // java.lang.Class
-    struct {
-        jmethodID getNameMtdId;
-    } javaClass;
+    namespace javaClass {
+        static jclass jClass;
+        static jmethodID getNameMtdId;
+    }
 
     // java.lang.Long
-    struct {
-        jmethodID constructor;
-    } javaLong;
-} IDS;
+    namespace javaLong{
+        static jclass jClass;
+        static jmethodID constructor;
+    }
+}
 
 // Will be caught and changed to a java.lang.IllegalArgumentException
 struct IllegalArgumentException {
@@ -56,7 +60,7 @@ const std::string toString(JNIEnv* env, jstring javaString) {
 
 // Returns a class's name
 const std::string getClassName(JNIEnv* env, jclass aClass) {
-    return toString(env,(jstring) env->CallObjectMethod(aClass, IDS.javaClass.getNameMtdId));
+    return toString(env,(jstring) env->CallObjectMethod(aClass, IDS::javaClass::getNameMtdId));
 }
 
 extern "C" {
@@ -71,21 +75,21 @@ extern "C" {
         llvm::InitializeNativeTarget();
 
         // Lookup commonly used method and field ids.
-        // Note that it is not safe to cache classes
-        const jclass nativeFunction_jClass = env->FindClass("com/medallia/unsafe/NativeFunction");
-        IDS.nativeFunction.constructor = env->GetMethodID(nativeFunction_jClass, "<init>", "(JLjava/lang/String;Lcom/medallia/unsafe/NativeModule;J)V");
-        IDS.nativeFunction.functionPtrFldId = env->GetFieldID(nativeFunction_jClass, "functionPtr", "J");
-        IDS.nativeFunction.parentFldId = env->GetFieldID(nativeFunction_jClass, "parent", "Lcom/medallia/unsafe/NativeModule;");
+        // Classes are pinned so the GC does not collect them
+        IDS::nativeFunction::jClass = (jclass) env->NewGlobalRef(env->FindClass("com/medallia/unsafe/NativeFunction"));
+        IDS::nativeFunction::constructor = env->GetMethodID(IDS::nativeFunction::jClass, "<init>", "(JLjava/lang/String;Lcom/medallia/unsafe/NativeModule;J)V");
+        IDS::nativeFunction::functionPtrFldId = env->GetFieldID(IDS::nativeFunction::jClass, "functionPtr", "J");
+        IDS::nativeFunction::parentFldId = env->GetFieldID(IDS::nativeFunction::jClass, "parent", "Lcom/medallia/unsafe/NativeModule;");
         
-        const jclass nativeModule_jClass = env->FindClass("com/medallia/unsafe/NativeModule");
-        IDS.nativeModule.constructor = env->GetMethodID(nativeModule_jClass, "<init>", "(JLjava/lang/String;)V");
-        IDS.nativeModule.modulePtrFldId = env->GetFieldID(nativeModule_jClass, "modulePtr", "J");
+        IDS::nativeModule::jClass = (jclass) env->NewGlobalRef(env->FindClass("com/medallia/unsafe/NativeModule"));
+        IDS::nativeModule::constructor = env->GetMethodID(IDS::nativeModule::jClass, "<init>", "(JLjava/lang/String;)V");
+        IDS::nativeModule::modulePtrFldId = env->GetFieldID(IDS::nativeModule::jClass, "modulePtr", "J");
 
-        const jclass javaClass_jClass = env->FindClass("java/lang/Class");
-        IDS.javaClass.getNameMtdId = env->GetMethodID(javaClass_jClass, "getName", "()Ljava/lang/String;");
+        IDS::javaClass::jClass = (jclass) env->NewGlobalRef(env->FindClass("java/lang/Class"));
+        IDS::javaClass::getNameMtdId = env->GetMethodID(IDS::javaClass::jClass, "getName", "()Ljava/lang/String;");
         
-        const jclass javaLong_jClass = env->FindClass("java/lang/Long");
-        IDS.javaLong.constructor = env->GetMethodID(javaLong_jClass, "<init>", "(J)V");
+        IDS::javaLong::jClass = (jclass) env->NewGlobalRef(env->FindClass("java/lang/Long"));
+        IDS::javaLong::constructor = env->GetMethodID(IDS::javaLong::jClass, "<init>", "(J)V");
     }
         
     /*
@@ -108,7 +112,7 @@ extern "C" {
         );
         
         // Create and initinalize a new unsafe.NativeModule
-        return env->NewObject(env->FindClass("com/medallia/unsafe/NativeModule"), IDS.nativeModule.constructor,
+        return env->NewObject(IDS::nativeModule::jClass, IDS::nativeModule::constructor,
                               (jlong) nativeModule,
                               env->NewStringUTF(nativeModule->errors.c_str()));
     }
@@ -122,14 +126,14 @@ extern "C" {
     (JNIEnv * env, jclass clazz, jobject aNativeFunction, jobjectArray arguments) {
         try {
             // Find the llvm::Function*
-            llvm::Function* func = (llvm::Function*) env->GetLongField(aNativeFunction, IDS.nativeFunction.functionPtrFldId);
+            llvm::Function* func = (llvm::Function*) env->GetLongField(aNativeFunction, IDS::nativeFunction::functionPtrFldId);
 
             // and the module object
-            const jobject aNativeModule = env->GetObjectField(aNativeFunction, IDS.nativeFunction.parentFldId);
+            const jobject aNativeModule = env->GetObjectField(aNativeFunction, IDS::nativeFunction::parentFldId);
 
             if (!aNativeModule) return nullptr;
             // extract the NativeModule instance
-            NativeModule* nativeModule = (NativeModule*) env->GetLongField(aNativeModule, IDS.nativeModule.modulePtrFldId);
+            NativeModule* nativeModule = (NativeModule*) env->GetLongField(aNativeModule, IDS::nativeModule::modulePtrFldId);
 
             // transform args and return values
             const jsize nArgs = env->GetArrayLength(arguments);
@@ -216,7 +220,7 @@ extern "C" {
             
             // Convert the return value to a suitable Java value
             if(func->getReturnType()->isIntegerTy() && result.IntVal.getNumWords() == 1) {
-                return env->NewObject(env->FindClass("java/lang/Long"), IDS.javaLong.constructor, (jlong)*result.IntVal.getRawData());
+                return env->NewObject(IDS::javaLong::jClass, IDS::javaLong::constructor, (jlong)*result.IntVal.getRawData());
             } else if (func->getReturnType()->isPointerTy()) {
                 const llvm::Type* elementType = func->getReturnType()->getPointerElementType();
                 if (elementType->isStructTy()) {
@@ -245,17 +249,15 @@ extern "C" {
     JNIEXPORT jobjectArray JNICALL Java_com_medallia_unsafe_Driver_getFunctions
     (JNIEnv * env, jclass clazz, jobject aNativeModule) {
         // Get a reference to a NativeModule
-        const NativeModule* nativeModule = (NativeModule*) env->GetLongField(aNativeModule, IDS.nativeModule.modulePtrFldId);
+        const NativeModule* nativeModule = (NativeModule*) env->GetLongField(aNativeModule, IDS::nativeModule::modulePtrFldId);
 
         // Get all native functions
         const std::vector<llvm::Function*> nativeFunctions = nativeModule->getFunctions();
 
         // Wrap them in Java objects
-        const jclass nativeFunctionJavaClass = env->FindClass("com/medallia/unsafe/NativeFunction");
-
-        jobjectArray result = env->NewObjectArray((jsize)nativeFunctions.size(), nativeFunctionJavaClass, nullptr);
+        jobjectArray result = env->NewObjectArray((jsize)nativeFunctions.size(), IDS::nativeFunction::jClass, nullptr);
         for (jsize i = 0; i < nativeFunctions.size(); ++i) {
-            const jobject javaNativeFunction = env->NewObject(nativeFunctionJavaClass, IDS.nativeFunction.constructor,
+            const jobject javaNativeFunction = env->NewObject(IDS::nativeFunction::jClass, IDS::nativeFunction::constructor,
                                                               (jlong)nativeFunctions[i],
                                                               env->NewStringUTF(nativeFunctions[i]->getName().str().c_str()),
                                                               aNativeModule,
@@ -275,6 +277,6 @@ extern "C" {
     JNIEXPORT void JNICALL Java_com_medallia_unsafe_Driver_delete
     (JNIEnv * env, jclass clazz, jobject aNativeModule) {
         // Delete the native module
-        delete (NativeModule*) env->GetLongField(aNativeModule, IDS.nativeModule.modulePtrFldId);
+        delete (NativeModule*) env->GetLongField(aNativeModule, IDS::nativeModule::modulePtrFldId);
     }
 }
