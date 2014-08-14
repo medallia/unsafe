@@ -1,7 +1,7 @@
-package com.medallia.thunk.example;
+package com.medallia.unsafe.thunk.example;
 
-import com.medallia.thunk.ThunkBuilder;
-import com.medallia.thunk.NativeBindings;
+import com.medallia.unsafe.thunk.ThunkBuilder;
+import com.medallia.unsafe.thunk.NativeBindings;
 import com.medallia.unsafe.Driver;
 import com.medallia.unsafe.Native;
 import com.medallia.unsafe.NativeFunction;
@@ -19,7 +19,7 @@ public class AutoFastCall {
 
 	/**
 	 * Holds pointers to functions needed by the native code.
-	 * Must be initialized by a call to {@link com.medallia.thunk.NativeBindings#getFunctionPointers(com.medallia.unsafe.NativeModule)}
+	 * Must be initialized by a call to {@link com.medallia.unsafe.thunk.NativeBindings#getFunctionPointers(com.medallia.unsafe.NativeModule)}
 	 * passing a suitable
 	 */
 	@Native

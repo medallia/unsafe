@@ -1,4 +1,4 @@
-package com.medallia.thunk;
+package com.medallia.unsafe.thunk;
 
 import com.medallia.unsafe.Driver;
 import com.medallia.unsafe.NativeModule;

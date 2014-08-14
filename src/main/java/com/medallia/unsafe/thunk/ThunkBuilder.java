@@ -1,4 +1,4 @@
-package com.medallia.thunk;
+package com.medallia.unsafe.thunk;
 
 import com.medallia.unsafe.io.IndentedPrintWriter;
 import com.medallia.unsafe.Driver;
@@ -39,7 +39,7 @@ import java.util.Map;
  * </pre>
  *
  * The {@link #initializeNative(Class)} will implement on the fly all the native methods of the passed class,
- * returning a {@link com.medallia.thunk.NativeBindings} object.
+ * returning a {@link com.medallia.unsafe.thunk.NativeBindings} object.
  * <p>
  * The class should have an instance field called {@code functions} of type {@code long[]} which will be used by
  * the native methods to find the actual implementations. For example, in the example above, the {@code foo()}
@@ -58,13 +58,13 @@ import java.util.Map;
 public abstract class ThunkBuilder {
 	/**
 	 * Creates a set of native bindings for a all native methods in the specified class.
-	 * The returned {@link com.medallia.thunk.NativeBindings} should be held for the lifetime of the class,
+	 * The returned {@link com.medallia.unsafe.thunk.NativeBindings} should be held for the lifetime of the class,
 	 * for example as a {@code static final} field.
 	 *
 	 * The specified class should have an instance field called {@code functions} of type {@code long[]} which
 	 * will be used by the native code to access the actual implementation at runtime.
 	 *
-	 * The function pointer array should be obtained by calling {@link com.medallia.thunk.NativeBindings#getFunctionPointers(com.medallia.unsafe.NativeModule)}
+	 * The function pointer array should be obtained by calling {@link com.medallia.unsafe.thunk.NativeBindings#getFunctionPointers(com.medallia.unsafe.NativeModule)}
 	 * @param aClass class to be processed
 	 * @return {@link NativeBindings} for the class.
 	 */

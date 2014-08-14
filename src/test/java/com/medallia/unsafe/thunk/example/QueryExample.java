@@ -1,7 +1,7 @@
-package com.medallia.thunk.example;
+package com.medallia.unsafe.thunk.example;
 
-import com.medallia.thunk.NativeBindings;
-import com.medallia.thunk.ThunkBuilder;
+import com.medallia.unsafe.thunk.NativeBindings;
+import com.medallia.unsafe.thunk.ThunkBuilder;
 import com.medallia.unsafe.Driver;
 import com.medallia.unsafe.Native;
 import com.medallia.unsafe.NativeModule;
