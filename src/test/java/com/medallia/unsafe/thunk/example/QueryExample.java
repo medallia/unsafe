@@ -42,13 +42,11 @@ public class QueryExample {
 			long start = System.nanoTime();
 			final long avg = avg(data);
 			long end = System.nanoTime();
-			System.out.println(end - start);
-			System.out.println(avg);
+			System.out.printf("  java: %d in %d ns%n", avg, end - start);
 			start = System.nanoTime();
 			final long process = query.process(data);
 			end = System.nanoTime();
-			System.out.println(end - start);
-			System.out.println(process);
+			System.out.printf("native: %d in %d ns%n", process, end - start);
 		}
 	}
 
