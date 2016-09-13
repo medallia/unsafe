@@ -31,7 +31,7 @@ public class NativeBindings {
 	 */
 	public long[] getFunctionPointers(NativeModule implementation) {
 		if (implementation.hasErrors()) {
-			throw new IllegalArgumentException("Implementation has errors: " + implementation.getErrors());
+			throw new IllegalArgumentException("Implementation has errors:\n" + implementation.getErrors());
 		}
 		final long[] functions = new long[nativeMethods.size()];
 
