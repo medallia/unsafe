@@ -30,6 +30,9 @@ public class NativeBindings {
 	 * @return an array of pointers.
 	 */
 	public long[] getFunctionPointers(NativeModule implementation) {
+		if (implementation.hasErrors()) {
+			throw new IllegalArgumentException("Implementation has errors: " + implementation.getErrors());
+		}
 		final long[] functions = new long[nativeMethods.size()];
 
 		for (int i = 0; i < nativeMethods.size(); i++) {
@@ -37,7 +40,9 @@ public class NativeBindings {
 			final String mangledName = ThunkBuilder.getMangledName(nativeMethod);
 			final NativeFunction compiledFunction = implementation.getFunctionByName(mangledName);
 			if (compiledFunction == null) {
-				throw new IllegalArgumentException("Missing implementation for: " + nativeMethod + " (" + mangledName + ").");
+				String similar = implementation.findSimilar(nativeMethod.getName());
+				throw new IllegalArgumentException("Missing implementation for: " + nativeMethod + " (" + mangledName + ")."
+						+ (similar == null? "" : " Maybe you meant: " + similar));
 			}
 			// We should get the pointer to the function here somehow.
 			functions[i] = compiledFunction.getPointerToCompiledFunction();

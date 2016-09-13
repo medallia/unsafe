@@ -53,6 +53,17 @@ public class NativeModule {
 		return nameIndex.get(name);
 	}
 
+	/**
+	 * Finds a similar function in this module
+ 	 * @param simpleName simple name to look for
+	 * @return the first match
+	 */
+	public String findSimilar(String simpleName) {
+		return nameIndex.keySet().stream()
+				.filter(s -> s.contains(simpleName)).findAny()
+				.orElse(null);
+	}
+
 	/** @return true if there are any errors */
 	public boolean hasErrors() {
 		return !errors.isEmpty();
