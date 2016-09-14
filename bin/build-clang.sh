@@ -7,6 +7,12 @@ set -e
 PROJECT_ROOT="$PWD/$(dirname $0)/.."
 . "$PROJECT_ROOT/bin/config.sh"
 
-# Go to build dir
+# Enter build dir
+mkdir "$CLANG_BUILD" || echo "$CLANG_BUILD exists"
 cd "$CLANG_BUILD"
-make
+
+# Configure
+cmake "$CLANG_ROOT/llvm"
+
+# Make it
+cmake --build .
