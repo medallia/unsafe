@@ -20,7 +20,7 @@ public class AutoFastCall {
 	/**
 	 * Holds pointers to functions needed by the native code.
 	 * Must be initialized by a call to {@link com.medallia.unsafe.thunk.NativeBindings#getFunctionPointers(com.medallia.unsafe.NativeModule)}
-	 * passing a suitable
+	 * passing a suitable implementation.
 	 */
 	@Native
 	private final long[] functions;
